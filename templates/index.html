@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pocket Option Signal Assistant</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --bg: #0f1115;
+            --card: #181b21;
+            --text: #e8eaed;
+            --muted: #9aa0a6;
+            --green: #34a853;
+            --red: #ea4335;
+            --blue: #4285f4;
+            --border: #2f353d;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+        }
+        header {
+            padding: 1.2rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        header h1 { margin: 0; font-size: 1.3rem; }
+        header .status { color: var(--muted); font-size: 0.9rem; display: flex; align-items: center; gap: 1rem; }
+        main { padding: 1.5rem; max-width: 1200px; margin: 0 auto; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.2rem;
+        }
+        .card h2 { margin-top: 0; font-size: 1rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+        .signal-card { border-left: 4px solid var(--blue); }
+        .signal-card.call { border-left-color: var(--green); }
+        .signal-card.put { border-left-color: var(--red); }
+        .big { font-size: 1.6rem; font-weight: 600; }
+        .muted { color: var(--muted); }
+        .row { display: flex; justify-content: space-between; margin: 0.4rem 0; }
+        .actions { display: flex; gap: 0.6rem; margin-top: 1rem; }
+        button {
+            background: var(--blue);
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 0.6rem 1rem;
+            cursor: pointer;
+            font-size: 0.95rem;
+        }
+        button:hover { opacity: 0.9; }
+        button.win { background: var(--green); }
+        button.loss { background: var(--red); }
+        button.void { background: #5f6368; }
+        button.refresh { background: #1e8e3e; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid var(--border); }
+        th { color: var(--muted); }
+        .no-signal { color: var(--muted); padding: 1rem 0; }
+        .asset-list { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+        .asset-pill {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 0.3rem 0.7rem;
+            font-size: 0.85rem;
+        }
+        .strength-bar {
+            height: 6px;
+            background: var(--border);
+            border-radius: 3px;
+            margin-top: 0.3rem;
+            overflow: hidden;
+        }
+        .strength-fill { height: 100%; background: var(--blue); }
+        #soundBtn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--muted);
+            padding: 0.3rem 0.6rem;
+            font-size: 0.8rem;
+        }
+        #soundBtn.enabled {
+            border-color: var(--green);
+            color: var(--green);
+        }
+        @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Pocket Option Signal Assistant</h1>
+        <div class="status" id="statusLine">
+            Initializing...
+            <button id="soundBtn" onclick="toggleSound()">Enable sound</button>
+        </div>
+    </header>
+    <main>
+        <div class="grid">
+            <div class="card signal-card" id="activeSignal">
+                <h2>Active Signal</h2>
+                <div id="signalBody" class="no-signal">No active signal yet.</div>
+            </div>
+
+            <div class="card">
+                <h2>Performance</h2>
+                <div id="analyticsBody">Loading...</div>
+            </div>
+
+            <div class="card">
+                <h2>Simulation</h2>
+                <div id="simAnalyticsBody">Loading...</div>
+                <div class="actions" style="margin-top:0.8rem">
+                    <button onclick="simulateTrade()">Simulate active signal</button>
+                    <button class="refresh" onclick="resolveSimulations()">Resolve</button>
+                </div>
+            </div>
+
+            <div class="card" style="grid-column: 1 / -1;">
+                <h2>Price Chart</h2>
+                <div style="display:flex; gap:1rem; align-items:center; margin-bottom:0.8rem">
+                    <select id="chartAsset" onchange="loadChart()"></select>
+                    <span class="muted" id="chartLevels"></span>
+                </div>
+                <canvas id="priceChart" height="80"></canvas>
+            </div>
+
+            <div class="card" style="grid-column: 1 / -1;">
+                <h2>Recent Signals</h2>
+                <div id="signalsBody" class="no-signal">No signals yet.</div>
+            </div>
+
+            <div class="card">
+                <h2>Watched Assets</h2>
+                <div class="asset-list" id="assetList"></div>
+            </div>
+
+            <div class="card">
+                <h2>Recent Trades</h2>
+                <div id="tradesBody">No trades logged.</div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let activeSignal = null;
+        let soundEnabled = false;
+        let lastSignalId = null;
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+
+        function playBeep() {
+            if (!soundEnabled || !audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = "sine";
+            osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.3);
+        }
+
+        function toggleSound() {
+            initAudio();
+            soundEnabled = !soundEnabled;
+            const btn = document.getElementById('soundBtn');
+            btn.innerText = soundEnabled ? 'Sound ON' : 'Enable sound';
+            btn.className = soundEnabled ? 'enabled' : '';
+        }
+
+        function notify(title, body) {
+            if ("Notification" in window && Notification.permission === "granted") {
+                new Notification(title, { body, icon: "" });
+            }
+        }
+
+        if ("Notification" in window && Notification.permission !== "granted") {
+            Notification.requestPermission();
+        }
+
+        async function fetchStatus() {
+            const res = await fetch('/api/status');
+            return await res.json();
+        }
+
+        async function fetchSignals() {
+            const res = await fetch('/api/signals');
+            return await res.json();
+        }
+
+        async function fetchAnalytics() {
+            const res = await fetch('/api/analytics');
+            return await res.json();
+        }
+
+        async function fetchTrades() {
+            const res = await fetch('/api/trades');
+            return await res.json();
+        }
+
+        async function fetchSimAnalytics() {
+            const res = await fetch('/api/simulate/analytics');
+            return await res.json();
+        }
+
+        async function simulateTrade() {
+            if (!activeSignal) return alert('No active signal to simulate');
+            const res = await fetch('/api/simulate/trade', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({signal: activeSignal})
+            });
+            await res.json();
+            await refreshAll();
+        }
+
+        async function resolveSimulations() {
+            const res = await fetch('/api/simulate/resolve', {method: 'POST'});
+            await res.json();
+            await refreshAll();
+        }
+
+        async function fetchChart(symbol) {
+            const res = await fetch('/api/chart/' + symbol);
+            return await res.json();
+        }
+
+        let priceChart = null;
+
+        async function loadChart() {
+            const symbol = document.getElementById('chartAsset').value || 'EURUSD';
+            const data = await fetchChart(symbol);
+            if (data.error) return;
+            const ctx = document.getElementById('priceChart').getContext('2d');
+            const supportArr = new Array(data.prices.length).fill(data.support);
+            const resistanceArr = new Array(data.prices.length).fill(data.resistance);
+            const levelText = [];
+            if (data.support) levelText.push(`Support: ${data.support}`);
+            if (data.resistance) levelText.push(`Resistance: ${data.resistance}`);
+            document.getElementById('chartLevels').innerText = levelText.join(' | ');
+
+            if (priceChart) priceChart.destroy();
+            priceChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [
+                        {
+                            label: 'Close',
+                            data: data.prices,
+                            borderColor: '#4285f4',
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            tension: 0.2
+                        },
+                        {
+                            label: 'Support',
+                            data: supportArr,
+                            borderColor: '#34a853',
+                            borderWidth: 1,
+                            borderDash: [5, 5],
+                            pointRadius: 0,
+                            fill: false
+                        },
+                        {
+                            label: 'Resistance',
+                            data: resistanceArr,
+                            borderColor: '#ea4335',
+                            borderWidth: 1,
+                            borderDash: [5, 5],
+                            pointRadius: 0,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { display: false },
+                        y: { grid: { color: '#2f353d' } }
+                    },
+                    plugins: { legend: { labels: { color: '#e8eaed' } } }
+                }
+            });
+        }
+
+        function formatTime(iso) {
+            if (!iso) return '—';
+            const d = new Date(iso);
+            return d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+        }
+
+        function renderActiveSignal(signal) {
+            activeSignal = signal;
+            const el = document.getElementById('activeSignal');
+            const body = document.getElementById('signalBody');
+            if (!signal) {
+                el.className = 'card signal-card';
+                body.innerHTML = '<div class="no-signal">No active signal yet.</div>';
+                return;
+            }
+            // New signal appeared
+            if (lastSignalId !== signal.signal_id) {
+                lastSignalId = signal.signal_id;
+                playBeep();
+                notify(
+                    `${signal.label} ${signal.direction}`,
+                    `Strength ${signal.strength}/10 | ${signal.current_price}`
+                );
+            }
+            el.className = 'card signal-card ' + signal.direction.toLowerCase();
+            const color = signal.direction === 'CALL' ? 'var(--green)' : 'var(--red)';
+            body.innerHTML = `
+                <div class="row">
+                    <span class="big" style="color:${color}">${signal.label} ${signal.direction}</span>
+                    <span class="big" style="color:${color}">${signal.current_price}</span>
+                </div>
+                <div class="row"><span>Strength</span><span>${signal.strength}/10</span></div>
+                <div class="strength-bar"><div class="strength-fill" style="width:${signal.strength*10}%; background:${color}"></div></div>
+                <div class="row"><span>Expiry</span><span>${signal.expiry_minutes} min</span></div>
+                <div class="row"><span>Suggested stake</span><span>$${signal.suggested_stake}</span></div>
+                <div class="row"><span>Support</span><span>${signal.support || 'n/a'}</span></div>
+                <div class="row"><span>Resistance</span><span>${signal.resistance || 'n/a'}</span></div>
+                <div class="row"><span>Window</span><span>${formatTime(signal.entry_window_start)} - ${formatTime(signal.entry_window_end)}</span></div>
+                <div class="muted" style="margin-top:0.6rem; font-size:0.9rem">${signal.reason}</div>
+                <div class="actions">
+                    <button onclick="takeTrade()">I took this trade</button>
+                    <button class="void" onclick="clearActive()">Dismiss</button>
+                </div>
+                <div class="actions" style="margin-top:0.5rem">
+                    <button class="win" onclick="closeTrade('win')">Mark WIN</button>
+                    <button class="loss" onclick="closeTrade('loss')">Mark LOSS</button>
+                    <button class="void" onclick="closeTrade('void')">Void</button>
+                </div>
+            `;
+        }
+
+        function renderSignals(data) {
+            const body = document.getElementById('signalsBody');
+            if (!data.signals || data.signals.length === 0) {
+                body.innerHTML = '<div class="no-signal">No signals yet.</div>';
+                return;
+            }
+            let html = '<table><tr><th>Asset</th><th>Dir</th><th>Strength</th><th>Price</th><th>Time</th></tr>';
+            for (const s of data.signals.slice(0, 20)) {
+                html += `<tr>
+                    <td>${s.label}</td>
+                    <td style="color:${s.direction==='CALL'?'var(--green)':'var(--red)'}">${s.direction}</td>
+                    <td>${s.strength}/10</td>
+                    <td>${s.current_price}</td>
+                    <td>${formatTime(s.generated_at)}</td>
+                </tr>`;
+            }
+            html += '</table>';
+            body.innerHTML = html;
+        }
+
+        function renderAnalytics(a) {
+            const body = document.getElementById('analyticsBody');
+            const halt = a.trading_halted ? `<div style="color:var(--red);font-weight:600;margin-bottom:0.5rem">TRADING HALTED - review strategy</div>` : '';
+            body.innerHTML = `
+                ${halt}
+                <div class="row"><span>Total trades</span><span>${a.total_trades}</span></div>
+                <div class="row"><span>Wins</span><span style="color:var(--green)">${a.wins}</span></div>
+                <div class="row"><span>Losses</span><span style="color:var(--red)">${a.losses}</span></div>
+                <div class="row"><span>Win rate</span><span>${a.win_rate}%</span></div>
+                <div class="row"><span>P/L</span><span style="color:${a.profit>=0?'var(--green)':'var(--red)'}">$${a.profit}</span></div>
+                <div class="row"><span>Open trades</span><span>${a.open_trades}</span></div>
+                <div class="row"><span>Max loss streak</span><span style="color:var(--red)">${a.max_consecutive_losses}</span></div>
+                <div style="margin-top:0.8rem">
+                    <button onclick="window.open('/api/export/trades')">Export CSV</button>
+                </div>
+                ${a.asset_stats ? a.asset_stats.map(s => `<div class="row" style="font-size:0.85rem;color:var(--muted)"><span>${s.asset}</span><span>${s.win_rate}% ($${s.profit})</span></div>`).join('') : ''}
+            `;
+        }
+
+        function renderSimAnalytics(a) {
+            const body = document.getElementById('simAnalyticsBody');
+            body.innerHTML = `
+                <div class="row"><span>Sim trades</span><span>${a.total}</span></div>
+                <div class="row"><span>Wins</span><span style="color:var(--green)">${a.wins}</span></div>
+                <div class="row"><span>Losses</span><span style="color:var(--red)">${a.losses}</span></div>
+                <div class="row"><span>Win rate</span><span>${a.win_rate}%</span></div>
+                <div class="row"><span>P/L</span><span style="color:${a.profit>=0?'var(--green)':'var(--red)'}">$${a.profit}</span></div>
+            `;
+        }
+
+        function renderTrades(trades) {
+            const body = document.getElementById('tradesBody');
+            if (!trades || trades.length === 0) {
+                body.innerHTML = 'No trades logged.';
+                return;
+            }
+            let html = '<table><tr><th>Asset</th><th>Dir</th><th>Stake</th><th>Result</th><th>Payout</th><th>Opened</th></tr>';
+            for (const t of trades.slice(0, 20)) {
+                const color = t.result === 'win' ? 'var(--green)' : (t.result === 'loss' ? 'var(--red)' : 'var(--muted)');
+                html += `<tr>
+                    <td>${t.asset}</td>
+                    <td>${t.direction}</td>
+                    <td>$${t.stake}</td>
+                    <td style="color:${color}">${t.result.toUpperCase()}</td>
+                    <td>$${t.payout || 0}</td>
+                    <td>${formatTime(t.opened_at)}</td>
+                </tr>`;
+            }
+            html += '</table>';
+            body.innerHTML = html;
+        }
+
+        async function refreshAll() {
+            try {
+                const [status, signals, analytics, trades, simAnalytics] = await Promise.all([
+                    fetchStatus(), fetchSignals(), fetchAnalytics(), fetchTrades(), fetchSimAnalytics()
+                ]);
+                document.getElementById('statusLine').innerHTML =
+                    `${status.scanning ? 'Scanning...' : 'Idle'} | Last scan: ${formatTime(status.last_scan)}
+                    <button class="refresh" onclick="forceRefresh()" style="margin-left:10px">Refresh now</button>`;
+                const assetSelect = document.getElementById('chartAsset');
+                const previous = assetSelect.value;
+                assetSelect.innerHTML = Object.entries(status.asset_meta)
+                    .map(([k,v]) => `<option value="${k}">${v.label}</option>`)
+                    .join('');
+                if (previous) assetSelect.value = previous;
+                document.getElementById('assetList').innerHTML = Object.entries(status.asset_meta)
+                    .map(([k,v]) => `<span class="asset-pill" title="Payout ${v.payout*100}%">${v.label}</span>`)
+                    .join('');
+                renderActiveSignal(signals.active_signal);
+                renderSignals(signals);
+                renderAnalytics(analytics);
+                renderSimAnalytics(simAnalytics);
+                renderTrades(trades);
+                loadChart();
+            } catch (e) {
+                document.getElementById('statusLine').innerText = 'Error: ' + e.message;
+            }
+        }
+
+        async function takeTrade() {
+            if (!activeSignal) return;
+            await fetch('/api/take_trade', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({signal_id: activeSignal.signal_id, signal: activeSignal})
+            });
+            await refreshAll();
+        }
+
+        async function closeTrade(result) {
+            if (!activeSignal) return;
+            let payout = 0;
+            const stake = parseFloat(activeSignal.suggested_stake);
+            const payoutRate = activeSignal.asset === 'BTCUSD' ? 0.95 : 0.90;
+            if (result === 'win') payout = stake * payoutRate;
+            await fetch('/api/close_trade', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({signal_id: activeSignal.signal_id, result: result, payout: payout})
+            });
+            await refreshAll();
+        }
+
+        async function clearActive() {
+            await fetch('/api/clear_active', {method: 'POST'});
+            await refreshAll();
+        }
+
+        async function forceRefresh() {
+            await fetch('/api/refresh', {method: 'POST'});
+        }
+
+        setInterval(refreshAll, 5000);
+        refreshAll();
+    </script>
+</body>
+</html>
