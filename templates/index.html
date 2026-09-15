@@ -177,6 +177,7 @@
     </header>
     <main>
         <div id="haltedBanner"></div>
+        <div class="muted" style="font-size:0.8rem; margin-bottom:0.8rem">Strategy: mean-reversion confluence · 30-minute expiry · forex majors only (real pairs, NOT OTC) · prices via biquote.io interbank feed</div>
 
         <div class="grid">
             <div class="card signal-card" id="activeSignal">
@@ -243,6 +244,7 @@
         let audioCtx = null;
         let sessionFilterEnabled = false;
         let priceChart = null;
+        let assetMeta = {};
 
         function initAudio() {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -615,6 +617,7 @@
                 ]);
 
                 sessionFilterEnabled = status.session_filter_enabled || false;
+                assetMeta = status.asset_meta || {};
                 const sbtn = document.getElementById('sessionBtn');
                 if (sbtn) {
                     sbtn.innerText = sessionFilterEnabled ? 'Session ON' : 'Session';
@@ -682,7 +685,7 @@
             if (!activeSignal) return;
             let payout = 0;
             const stake = parseFloat(activeSignal.suggested_stake);
-            const payoutRate = activeSignal.asset === 'BTCUSD' ? 0.95 : 0.90;
+            const payoutRate = (assetMeta[activeSignal.asset] && assetMeta[activeSignal.asset].payout) || 0.90;
             if (result === 'win') payout = stake * payoutRate;
             await fetch('/api/close_trade', {
                 method: 'POST',

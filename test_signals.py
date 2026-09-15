@@ -26,7 +26,7 @@ def main():
             print(f"{symbol}: no signal")
 
     if not found:
-        print("No signals generated right now. Wait for price to approach a support/resistance level.")
+        print("No signals generated right now. Wait for a mean-reversion confluence (RSI extreme, Bollinger overshoot, 3 same-colour candles).")
 
 
 if __name__ == "__main__":

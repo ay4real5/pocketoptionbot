@@ -8,41 +8,50 @@ load_dotenv()
 # --- Assets to watch ---
 # Use symbols that exist on both biquote/MetaTrader and Pocket Option.
 # Pocket Option usually shows them as EUR/USD, GBP/USD, etc.
+# Only the four forex majors: all four were profitable on the unseen Aug-Sep test
+# data with the confluence strategy; Gold and BTC were coin flips.
 ASSETS = {
     "EURUSD": {"label": "EUR/USD", "payout": 0.92, "category": "forex"},
     "GBPUSD": {"label": "GBP/USD", "payout": 0.90, "category": "forex"},
-    # USDJPY removed: lost money in both 24h backtests (49.5% win rate)
     "AUDUSD": {"label": "AUD/USD", "payout": 0.87, "category": "forex"},
-    "XAUUSD": {"label": "Gold", "payout": 0.88, "category": "commodity"},
-    "BTCUSD": {"label": "BTC/USD", "payout": 0.95, "category": "crypto"},
+    "USDJPY": {"label": "USD/JPY", "payout": 0.88, "category": "forex"},
 }
 
 DEFAULT_ASSET = "EURUSD"
 
 # --- Signal timeframes ---
-CHART_TIMEFRAME = "5m"      # candles used for S/R and trend
+CHART_TIMEFRAME = "5m"      # candles the strategy is evaluated on (closed candles only)
 SIGNAL_TIMEFRAME = "1m"     # candles used for entry timing
 SIGNAL_INTERVAL_SECONDS = 30  # how often the engine refreshes
+EXPIRY_MINUTES = 30         # Pocket Option expiry to use for every signal
+ENTRY_WINDOW_SECONDS = 120  # enter within this long after the signal candle closes
+
+# --- Strategy: mean-reversion confluence (see strategy_lab2.py) ---
+# Votes: RSI extreme, close outside Bollinger 20/2, three same-colour candles.
+#   Rule A: all 3 votes -> trade at any hour        (Aug-Sep unseen: ~57-61% on majors)
+#   Rule B: 2 of 3 votes, only 20:00-24:00 UTC      (Aug-Sep unseen: ~62%)
+BB_PERIOD = 20
+BB_STD = 2.0
+CONFLUENCE_LATE_HOURS_UTC = [(20, 24)]
+CONFLUENCE_LATE_MIN_VOTES = 2
 
 # --- Risk / stake ---
 DEFAULT_STAKE = 10.0
 MAX_DAILY_LOSS = 100.0
 MAX_CONSECUTIVE_LOSS = 3
 
-# --- S/R engine parameters ---
+# --- S/R levels (still drawn on the chart; no longer drive signals) ---
 SWING_LOOKBACK = 12         # candles to look back for swing points
-SR_TOUCH_THRESHOLD_PCT = 0.0010   # price must be within 0.10% of a level (slightly looser)
+SR_TOUCH_THRESHOLD_PCT = 0.0010
 EMA_FAST = 8
 EMA_SLOW = 21
-MIN_STRENGTH = 5            # 0-10 scale; signals below this are filtered (slightly looser)
-# Assets that were profitable in BOTH 24h backtests so far. Adds +1 strength.
-PROVEN_ASSETS = ["GBPUSD"]
-SIGNAL_COOLDOWN_SECONDS = 90      # do not re-alert for same asset+direction within 90 sec
+MIN_STRENGTH = 7            # 0-10 scale; confluence signals score 7-10
+SIGNAL_COOLDOWN_SECONDS = 300     # one alert per asset+direction per 5m candle
 
-# --- Oscillator confirmation ---
+# --- Oscillators ---
 RSI_PERIOD = 14
-RSI_OVERBOUGHT = 70         # CALL signals are rejected if RSI >= this value
-RSI_OVERSOLD = 30           # PUT signals are rejected if RSI <= this value
+RSI_OVERBOUGHT = 70         # PUT vote when RSI > this
+RSI_OVERSOLD = 30           # CALL vote when RSI < this
 MACD_FAST = 12
 MACD_SLOW = 26
 MACD_SIGNAL = 9
@@ -58,8 +67,8 @@ SESSIONS_UTC = {
 SESSION_FILTER = []  # e.g. ["london", "ny"] to restrict signals to those sessions
 
 # Hours (UTC, start inclusive, end exclusive) where no signals are produced.
-# 20:00-24:00 UTC = NY close / rollover: 47.8% win rate in backtest vs 55%+ elsewhere.
-BLACKOUT_HOURS_UTC = [(20, 24)]
+# Empty for the confluence strategy: its best block is 20:00-24:00 UTC.
+BLACKOUT_HOURS_UTC = []
 
 # --- Auto-simulation ---
 # When True, every generated signal is automatically opened as a simulated

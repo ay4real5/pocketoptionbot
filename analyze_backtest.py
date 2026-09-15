@@ -39,7 +39,7 @@ for symbol in config.ASSETS:
             "asset": symbol, "dir": sig.direction, "strength": sig.strength,
             "dist_bucket": f"{min(int(dist_ratio * 3), 3)}/3",
             "broke_level": broke,
-            "macd": "confirms" if "(confirms)" in sig.reason else ("disagrees" if "(disagrees)" in sig.reason else "flat"),
+            "votes": "3" if "all 3" in sig.reason else "2",
             "rsi_extreme": "RSI" in sig.reason,
             "last_candle_with_trade": (last_move > 0) == (sig.direction == "CALL"),
             "hour": when.hour,
@@ -48,11 +48,11 @@ for symbol in config.ASSETS:
 
 d = pd.DataFrame(rows)
 print(f"total {len(d)}  win rate {d.win.mean()*100:.1f}%\n")
-for col in ["strength", "dist_bucket", "broke_level", "macd", "rsi_extreme", "last_candle_with_trade", "dir", "asset"]:
+for col in ["strength", "dist_bucket", "broke_level", "votes", "rsi_extreme", "last_candle_with_trade", "dir", "asset"]:
     g = d.groupby(col)["win"].agg(["count", "mean"])
     g["mean"] = (g["mean"] * 100).round(1)
     print(f"--- by {col}\n{g.to_string()}\n")
 g = d.groupby(d.hour // 4 * 4)["win"].agg(["count", "mean"]); g["mean"] = (g["mean"] * 100).round(1)
 print(f"--- by 4h block (UTC)\n{g.to_string()}\n")
-g = d.groupby(["broke_level", "macd"])["win"].agg(["count", "mean"]); g["mean"] = (g["mean"] * 100).round(1)
-print(f"--- broke_level x macd\n{g.to_string()}")
+g = d.groupby(["broke_level", "votes"])["win"].agg(["count", "mean"]); g["mean"] = (g["mean"] * 100).round(1)
+print(f"--- broke_level x votes\n{g.to_string()}")

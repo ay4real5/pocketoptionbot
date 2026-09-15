@@ -34,7 +34,7 @@ class TelegramAlerter:
         direction_emoji = "CALL" if signal["direction"] == "CALL" else "PUT"
         return (
             f"POCKET OPTION SIGNAL\n"
-            f"Asset: {signal['label']} ({signal['asset']})\n"
+            f"Asset: {signal['label']} ({signal['asset']}) — real pair, NOT OTC\n"
             f"Direction: {direction_emoji}\n"
             f"Strength: {signal['strength']}/10\n"
             f"Current price: {signal['current_price']}\n"

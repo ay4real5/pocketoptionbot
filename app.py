@@ -225,7 +225,7 @@ def take_trade():
         direction=signal.get("direction"),
         entry_price=float(signal.get("current_price", 0)),
         stake=float(signal.get("suggested_stake", config.DEFAULT_STAKE)),
-        expiry_minutes=int(signal.get("expiry_minutes", 5)),
+        expiry_minutes=int(signal.get("expiry_minutes", config.EXPIRY_MINUTES)),
     )
     return jsonify({"status": "logged", "trade": trade.to_dict()})
 

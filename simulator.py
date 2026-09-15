@@ -1,8 +1,8 @@
 """Fake trade simulator - tests signals without risking real/demo funds.
 
 It records hypothetical trades into a separate CSV. A CALL is treated as a win
-if price at expiry is >= entry price (with a tiny tolerance); a PUT wins if
-price is <= entry price. This is a rough proxy for binary option outcomes.
+if price at expiry is strictly above entry price; a PUT wins if strictly below;
+an exact tie counts as a loss (matches backtest.py).
 """
 
 import csv
@@ -67,7 +67,7 @@ class Simulator:
             direction=signal.get("direction", ""),
             entry_price=float(signal.get("current_price", 0)),
             stake=stake,
-            expiry_minutes=int(signal.get("expiry_minutes", 5)),
+            expiry_minutes=int(signal.get("expiry_minutes", config.EXPIRY_MINUTES)),
             opened_at=now.isoformat(),
         )
         self._append(trade.to_dict())

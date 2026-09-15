@@ -1,6 +1,6 @@
 # Pocket Option Signal Assistant
 
-A local, non-official signal dashboard for Pocket Option. It does **not** connect to Pocket Option's servers or place automatic trades. It reads public market data, generates support/resistance-based signals, shows them in a browser dashboard, and lets you log manual trades for performance tracking.
+A local, non-official signal dashboard for Pocket Option. It does **not** connect to Pocket Option's servers or place automatic trades. It reads public market data, generates mean-reversion confluence signals (30-minute expiry), shows them in a browser dashboard, and lets you log manual trades for performance tracking.
 
 ## Why this exists
 
@@ -8,9 +8,8 @@ Pocket Option does not publish a verified public trading API comparable to Deriv
 
 ## What it does
 
-- Fetches real-time prices for 5 assets — EUR/USD, GBP/USD, AUD/USD, Gold, BTC/USD — from the free **biquote** MT5 feed (USD/JPY removed: lost money in both 24h backtests).
-- Computes swing-based support / resistance levels and EMA trend.
-- Adds RSI and MACD confirmation filters to reduce bad signals.
+- Fetches real-time prices for the 4 forex majors — EUR/USD, GBP/USD, USD/JPY, AUD/USD — from the free **biquote** MT5 feed (Gold and BTC were coin flips in backtest).
+- Computes mean-reversion confluence signals (RSI extreme, Bollinger overshoot, 3 same-colour candles).
 - Generates CALL/PUT signals with strength score, expiry window and suggested stake.
 - Throttles repeated alerts so you do not get spammed.
 - Shows live signals and an interactive price chart on a local web dashboard (`http://127.0.0.1:5000`).
@@ -31,7 +30,7 @@ Pocket Option does not publish a verified public trading API comparable to Deriv
 | File | Purpose |
 |------|---------|
 | `app.py` | Flask dashboard server and background scanner |
-| `signal_engine.py` | Data fetching, S/R, EMA, RSI, MACD signal logic |
+| `signal_engine.py` | Data fetching and mean-reversion confluence signal logic |
 | `trades.py` | Trade journal CSV + analytics |
 | `simulator.py` | Fake trade simulator for safe testing |
 | `backtest.py` | Same-day replay of the strategy over feed history |
@@ -72,18 +71,25 @@ Pocket Option does not publish a verified public trading API comparable to Deriv
 
 ## Strategy logic
 
-Signals are generated when:
-- Price is within the configured percentage threshold of a recent swing support/resistance level.
-- The short EMA is above/below the long EMA in the expected direction.
-- RSI is not overbought for CALLs or oversold for PUTs.
-- MACD histogram confirms the direction.
-- A strength score (0-10) reaches the minimum threshold. Strength is: base 6, +1 strong EMA separation, +1 last candle moving with the trade, +1 asset in `PROVEN_ASSETS` (positive backtest record). Distance-to-level and MACD no longer affect the score.
+Mean-reversion confluence on 5-minute closed candles, over the 4 forex majors
+(EUR/USD, GBP/USD, USD/JPY, AUD/USD — real pairs, not OTC). Each signal needs
+independent "overshoot" votes on the last closed candle:
+
+- RSI extreme (< 30 for CALL, > 70 for PUT)
+- Close outside the 20-period, 2-std Bollinger band
+- 3 same-colour candles in a row
+
+3 of 3 votes fires at any hour; 2 of 3 fires only in the late session
+(20:00-24:00 UTC, `CONFLUENCE_LATE_HOURS_UTC`). Every signal uses a 30-minute
+expiry (`EXPIRY_MINUTES`) and a ~2-minute entry window. Strength is 9 for
+3 votes, 7 for 2 votes, +1 in the late-session window. The strategy was
+validated out-of-sample in `strategy_lab2.py` (see also `strategy_lab.py` and
+the `dukascopy-python` history downloads).
 
 Other `config.py` knobs:
 
-- `BLACKOUT_HOURS_UTC = [(20, 24)]` — no signals 20:00-24:00 UTC (NY close/rollover was the weakest window in backtest).
-- `PROVEN_ASSETS` — assets profitable in both 24h backtests so far; adds +1 strength.
 - `AUTO_SIMULATE` — auto-open and auto-resolve a sim trade for every signal.
+- `BLACKOUT_HOURS_UTC` — currently empty; hours where no signals are produced.
 
 Optional London / NY session filter is in `config.py`. Set `SESSION_FILTER = []` to disable it.
 
