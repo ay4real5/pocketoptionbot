@@ -130,6 +130,11 @@ class SignalEngine:
         return abs(price - level) / price
 
     @staticmethod
+    def in_blackout(when: Optional[datetime] = None) -> bool:
+        hour = (when or datetime.now(timezone.utc)).hour
+        return any(start <= hour < end for start, end in getattr(config, "BLACKOUT_HOURS_UTC", []))
+
+    @staticmethod
     def in_session() -> bool:
         """Check if current UTC hour is within configured trading sessions."""
         if not config.SESSION_FILTER:
@@ -153,8 +158,8 @@ class SignalEngine:
             logger.warning("Not enough data for %s", symbol)
             return None
 
-        if not self.in_session():
-            logger.debug("Outside configured trading sessions for %s", symbol)
+        if not self.in_session() or self.in_blackout():
+            logger.debug("Outside configured trading hours for %s", symbol)
             return None
 
         signal = self.evaluate(symbol, df)
@@ -189,18 +194,19 @@ class SignalEngine:
         resistance = self.nearest_level(current_price, levels, "resistance")
 
         signal_direction = None
-        score = 0
+        # Scoring (flattened after backtest review): distance-to-level and MACD
+        # agreement showed no predictive value, so they no longer move the score.
+        score = 6
         reason_parts = []
 
         threshold = config.SR_TOUCH_THRESHOLD_PCT
+        prev_close = float(df["close"].iloc[-2])
 
-        # CALL logic: price near support, trend up, RSI not overbought, MACD bullish
+        # CALL logic: price near support, trend up, RSI not overbought
         if support is not None:
             dist = self.distance_pct(current_price, support)
             if dist <= threshold and trend == "UP":
                 signal_direction = "CALL"
-                # Closer to level = higher score
-                score += int(max(0, 10 - (dist / threshold) * 3))
                 reason_parts.append(f"price near support ({support:.5f})")
                 reason_parts.append("uptrend via EMA")
 
@@ -211,20 +217,13 @@ class SignalEngine:
                 elif last_rsi <= config.RSI_OVERSOLD:
                     reason_parts.append("RSI oversold")
 
-                # MACD filter
-                if last_hist > 0:
-                    score += 1
-                    reason_parts.append("MACD bullish (confirms)")
-                elif last_hist < 0:
-                    score = max(score - 1, 0)
-                    reason_parts.append("MACD bearish (disagrees)")
+                reason_parts.append("MACD bullish" if last_hist > 0 else "MACD bearish")
 
-        # PUT logic: price near resistance, trend down, RSI not oversold, MACD bearish
+        # PUT logic: price near resistance, trend down, RSI not oversold
         if signal_direction is None and resistance is not None:
             dist = self.distance_pct(current_price, resistance)
             if dist <= threshold and trend == "DOWN":
                 signal_direction = "PUT"
-                score += int(max(0, 10 - (dist / threshold) * 3))
                 reason_parts.append(f"price near resistance ({resistance:.5f})")
                 reason_parts.append("downtrend via EMA")
 
@@ -235,18 +234,19 @@ class SignalEngine:
                 elif last_rsi >= config.RSI_OVERBOUGHT:
                     reason_parts.append("RSI overbought")
 
-                # MACD filter
-                if last_hist < 0:
-                    score += 1
-                    reason_parts.append("MACD bearish (confirms)")
-                elif last_hist > 0:
-                    score = max(score - 1, 0)
-                    reason_parts.append("MACD bullish (disagrees)")
+                reason_parts.append("MACD bearish" if last_hist < 0 else "MACD bullish")
 
-        # Trend confluence boost
         if signal_direction:
             if trend_strength > 0.0002:
                 score += 1
+                reason_parts.append("strong EMA separation")
+            candle_up = current_price > prev_close
+            if candle_up == (signal_direction == "CALL"):
+                score += 1
+                reason_parts.append("last candle moving with trade")
+            if symbol in getattr(config, "PROVEN_ASSETS", ()):
+                score += 1
+                reason_parts.append("asset has positive backtest record")
             score = min(score, 10)
 
         if not signal_direction or score < config.MIN_STRENGTH:

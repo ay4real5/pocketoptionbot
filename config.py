@@ -11,7 +11,7 @@ load_dotenv()
 ASSETS = {
     "EURUSD": {"label": "EUR/USD", "payout": 0.92, "category": "forex"},
     "GBPUSD": {"label": "GBP/USD", "payout": 0.90, "category": "forex"},
-    "USDJPY": {"label": "USD/JPY", "payout": 0.88, "category": "forex"},
+    # USDJPY removed: lost money in both 24h backtests (49.5% win rate)
     "AUDUSD": {"label": "AUD/USD", "payout": 0.87, "category": "forex"},
     "XAUUSD": {"label": "Gold", "payout": 0.88, "category": "commodity"},
     "BTCUSD": {"label": "BTC/USD", "payout": 0.95, "category": "crypto"},
@@ -35,6 +35,8 @@ SR_TOUCH_THRESHOLD_PCT = 0.0010   # price must be within 0.10% of a level (sligh
 EMA_FAST = 8
 EMA_SLOW = 21
 MIN_STRENGTH = 5            # 0-10 scale; signals below this are filtered (slightly looser)
+# Assets that were profitable in BOTH 24h backtests so far. Adds +1 strength.
+PROVEN_ASSETS = ["GBPUSD"]
 SIGNAL_COOLDOWN_SECONDS = 90      # do not re-alert for same asset+direction within 90 sec
 
 # --- Oscillator confirmation ---
@@ -54,6 +56,10 @@ SESSIONS_UTC = {
     "london_ny_overlap": (13, 16),
 }
 SESSION_FILTER = []  # e.g. ["london", "ny"] to restrict signals to those sessions
+
+# Hours (UTC, start inclusive, end exclusive) where no signals are produced.
+# 20:00-24:00 UTC = NY close / rollover: 47.8% win rate in backtest vs 55%+ elsewhere.
+BLACKOUT_HOURS_UTC = [(20, 24)]
 
 # --- Auto-simulation ---
 # When True, every generated signal is automatically opened as a simulated

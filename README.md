@@ -8,7 +8,7 @@ Pocket Option does not publish a verified public trading API comparable to Deriv
 
 ## What it does
 
-- Fetches real-time forex, gold and crypto prices from the free **biquote** MT5 feed.
+- Fetches real-time prices for 5 assets — EUR/USD, GBP/USD, AUD/USD, Gold, BTC/USD — from the free **biquote** MT5 feed (USD/JPY removed: lost money in both 24h backtests).
 - Computes swing-based support / resistance levels and EMA trend.
 - Adds RSI and MACD confirmation filters to reduce bad signals.
 - Generates CALL/PUT signals with strength score, expiry window and suggested stake.
@@ -18,7 +18,8 @@ Pocket Option does not publish a verified public trading API comparable to Deriv
 - Lets you click "I took this trade" and later mark WIN / LOSS / VOID.
 - Tracks win rate, profit/loss, per-asset stats, max loss streak, daily loss and open trades.
 - **Auto-halts** new signals when max loss streak or daily loss limit is reached.
-- Includes a **fake trade simulator** to test the strategy without risking funds.
+- Includes a **fake trade simulator** to test the strategy without risking funds — with `AUTO_SIMULATE` on, every signal is auto-simulated and resolved after expiry (one open sim trade per asset).
+- Replays the last 24h of feed history in the dashboard's **Backtest** card: overall/per-asset/per-strength win rates vs a payout-adjusted break-even line.
 - Exports trade history to CSV.
 - One-click copy of trade details for fast manual entry on Pocket Option.
 - Keyboard hotkeys: `C` confirm trade, `P` dismiss, `W` win, `L` loss, `S` simulate.
@@ -33,6 +34,8 @@ Pocket Option does not publish a verified public trading API comparable to Deriv
 | `signal_engine.py` | Data fetching, S/R, EMA, RSI, MACD signal logic |
 | `trades.py` | Trade journal CSV + analytics |
 | `simulator.py` | Fake trade simulator for safe testing |
+| `backtest.py` | Same-day replay of the strategy over feed history |
+| `analyze_backtest.py` | Diagnostic breakdown of backtest results |
 | `telegram_alerts.py` | Optional Telegram bot sender |
 | `config.py` | Assets, timeframes, risk parameters, session filters |
 | `templates/index.html` | Dashboard UI with chart and notifications |
@@ -71,7 +74,13 @@ Signals are generated when:
 - The short EMA is above/below the long EMA in the expected direction.
 - RSI is not overbought for CALLs or oversold for PUTs.
 - MACD histogram confirms the direction.
-- A strength score (0-10) reaches the minimum threshold.
+- A strength score (0-10) reaches the minimum threshold. Strength is: base 6, +1 strong EMA separation, +1 last candle moving with the trade, +1 asset in `PROVEN_ASSETS` (positive backtest record). Distance-to-level and MACD no longer affect the score.
+
+Other `config.py` knobs:
+
+- `BLACKOUT_HOURS_UTC = [(20, 24)]` — no signals 20:00-24:00 UTC (NY close/rollover was the weakest window in backtest).
+- `PROVEN_ASSETS` — assets profitable in both 24h backtests so far; adds +1 strength.
+- `AUTO_SIMULATE` — auto-open and auto-resolve a sim trade for every signal.
 
 Optional London / NY session filter is in `config.py`. Set `SESSION_FILTER = []` to disable it.
 

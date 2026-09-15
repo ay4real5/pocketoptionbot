@@ -5,7 +5,7 @@ Outcome rule (conservative, mirrors a fixed-expiry binary option):
   - exit   = close of the candle `expiry_minutes / candle_minutes` bars later
   - CALL wins if exit > entry, PUT wins if exit < entry, exact tie counts as a LOSS
   - P/L: win = +stake * payout_rate, loss = -stake
-Session filter is ignored so the whole day is evaluated.
+Session filter is ignored so the whole day is evaluated; BLACKOUT_HOURS_UTC is applied.
 """
 from __future__ import annotations
 
@@ -36,6 +36,8 @@ def _run_asset(engine: SignalEngine, symbol: str, df: pd.DataFrame, stake: float
             continue
         window = df.iloc[i - WINDOW:i]
         when = pd.to_datetime(window["time"].iloc[-1], utc=True).to_pydatetime() if "time" in window else datetime.now(timezone.utc)
+        if engine.in_blackout(when):
+            continue
         sig = engine.evaluate(symbol, window, now=when)
         if not sig:
             continue

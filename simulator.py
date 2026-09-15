@@ -161,6 +161,7 @@ class Simulator:
         }
 
     def _append(self, row: Dict):
+        self._ensure_file()
         with open(SIM_TRADES_FILE, "a", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=[
                 "signal_id", "asset", "direction", "entry_price", "stake",
