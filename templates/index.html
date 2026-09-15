@@ -196,6 +196,7 @@
                     <button onclick="simulateTrade()">Simulate signal <span class="key-hint">S</span></button>
                     <button class="refresh" onclick="resolveSimulations()">Resolve</button>
                 </div>
+                <div id="simMessage" class="muted" style="margin-top:0.6rem; min-height:1.2em"></div>
             </div>
 
             <div class="card" style="grid-column: 1 / -1;">
@@ -307,18 +308,42 @@
         async function fetchSimAnalytics() { return (await fetch('/api/simulate/analytics')).json(); }
         async function fetchChart(symbol) { return (await fetch('/api/chart/' + symbol)).json(); }
 
+        function setSimMessage(text, isError) {
+            const el = document.getElementById('simMessage');
+            if (!el) return;
+            el.innerText = text || '';
+            el.style.color = isError ? 'var(--red)' : '';
+        }
+
         async function simulateTrade() {
             if (!activeSignal) return alert('No active signal to simulate');
-            await fetch('/api/simulate/trade', {
+            const res = await fetch('/api/simulate/trade', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({signal: activeSignal})
             });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || data.error) {
+                setSimMessage('Simulate failed: ' + (data.error || res.statusText || res.status), true);
+            } else if (data.trade) {
+                const t = data.trade;
+                setSimMessage(`Simulated ${t.asset} ${t.direction} opened at ${t.entry_price} — click Resolve after ${t.expiry_minutes} min`);
+            }
             await refreshAll();
         }
 
         async function resolveSimulations() {
-            await fetch('/api/simulate/resolve', {method: 'POST'});
+            const res = await fetch('/api/simulate/resolve', {method: 'POST'});
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || data.error) {
+                setSimMessage('Resolve failed: ' + (data.error || res.statusText || res.status), true);
+            } else if (data.analytics && data.analytics.open != null) {
+                setSimMessage(data.analytics.open > 0
+                    ? `Resolve run — ${data.analytics.open} trade(s) still open, waiting for expiry.`
+                    : 'Resolve run — all open sim trades have been closed.');
+            } else {
+                setSimMessage('Resolve run — trades past expiry have been closed.');
+            }
             await refreshAll();
         }
 
@@ -479,6 +504,7 @@
             if (!body) { console.error('renderSimAnalytics: missing element'); return; }
             body.innerHTML = `
                 <div class="row"><span>Sim trades</span><span>${a.total}</span></div>
+                <div class="row"><span>Open (waiting for expiry)</span><span style="color:var(--yellow, #f5c542); font-weight:600">${a.open ?? 0}</span></div>
                 <div class="row"><span>Wins</span><span style="color:var(--green); font-weight:600">${a.wins}</span></div>
                 <div class="row"><span>Losses</span><span style="color:var(--red); font-weight:600">${a.losses}</span></div>
                 <div class="row"><span>Win rate</span><span>${a.win_rate}%</span></div>
@@ -562,7 +588,7 @@
             } catch (e) {
                 console.error('refreshAll error:', e);
                 const statusLine = document.getElementById('statusLine');
-                if (statusLine) statusLine.innerText = 'Error: ' + e.message;
+                if (statusLine) statusLine.innerText = 'Server not reachable — restart with run.ps1';
             }
         }
 

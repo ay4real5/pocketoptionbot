@@ -128,13 +128,15 @@ class Simulator:
             writer.writerows(updated_rows)
 
     def analytics(self) -> Dict:
+        empty = {"total": 0, "wins": 0, "losses": 0, "open": 0, "win_rate": 0.0, "profit": 0.0}
         if not os.path.exists(SIM_TRADES_FILE):
-            return {"total": 0, "wins": 0, "losses": 0, "win_rate": 0.0, "profit": 0.0}
+            return empty
         df = pd.read_csv(SIM_TRADES_FILE)
         if df.empty:
-            return {"total": 0, "wins": 0, "losses": 0, "win_rate": 0.0, "profit": 0.0}
+            return empty
         wins = int((df["result"] == "win").sum())
         losses = int((df["result"] == "loss").sum())
+        open_count = int((df["result"] == "open").sum())
         total = wins + losses
         win_rate = (wins / total * 100) if total else 0.0
         profit = df.apply(
@@ -145,6 +147,7 @@ class Simulator:
             "total": int(total),
             "wins": int(wins),
             "losses": int(losses),
+            "open": open_count,
             "win_rate": round(float(win_rate), 2),
             "profit": round(float(profit), 2),
         }
