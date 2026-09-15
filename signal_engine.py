@@ -202,10 +202,10 @@ class SignalEngine:
                 # MACD filter
                 if last_hist > 0:
                     score += 1
-                    reason_parts.append("MACD bullish")
+                    reason_parts.append("MACD bullish (confirms)")
                 elif last_hist < 0:
                     score = max(score - 1, 0)
-                    reason_parts.append("MACD bearish")
+                    reason_parts.append("MACD bearish (disagrees)")
 
         # PUT logic: price near resistance, trend down, RSI not oversold, MACD bearish
         if signal_direction is None and resistance is not None:
@@ -226,10 +226,10 @@ class SignalEngine:
                 # MACD filter
                 if last_hist < 0:
                     score += 1
-                    reason_parts.append("MACD bearish")
+                    reason_parts.append("MACD bearish (confirms)")
                 elif last_hist > 0:
                     score = max(score - 1, 0)
-                    reason_parts.append("MACD bullish")
+                    reason_parts.append("MACD bullish (disagrees)")
 
         # Trend confluence boost
         if signal_direction:

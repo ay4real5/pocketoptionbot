@@ -31,11 +31,11 @@ MAX_CONSECUTIVE_LOSS = 3
 
 # --- S/R engine parameters ---
 SWING_LOOKBACK = 12         # candles to look back for swing points
-SR_TOUCH_THRESHOLD_PCT = 0.0005   # price must be within 0.05% of a level
+SR_TOUCH_THRESHOLD_PCT = 0.0010   # price must be within 0.10% of a level (slightly looser)
 EMA_FAST = 8
 EMA_SLOW = 21
-MIN_STRENGTH = 6            # 0-10 scale; signals below this are filtered
-SIGNAL_COOLDOWN_SECONDS = 120     # do not re-alert for same asset+direction within 2 min
+MIN_STRENGTH = 5            # 0-10 scale; signals below this are filtered (slightly looser)
+SIGNAL_COOLDOWN_SECONDS = 90      # do not re-alert for same asset+direction within 90 sec
 
 # --- Oscillator confirmation ---
 RSI_PERIOD = 14
