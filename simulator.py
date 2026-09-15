@@ -43,13 +43,14 @@ class SimTrade:
 class Simulator:
     """Records hypothetical trades and resolves them after expiry."""
 
-    def __init__(self):
-        self.engine = SignalEngine()
+    def __init__(self, engine=None, path: Optional[str] = None):
+        self.engine = engine or SignalEngine()
+        self.path = path or SIM_TRADES_FILE
         self._ensure_file()
 
     def _ensure_file(self):
-        if not os.path.exists(SIM_TRADES_FILE):
-            with open(SIM_TRADES_FILE, "w", newline="", encoding="utf-8") as f:
+        if not os.path.exists(self.path):
+            with open(self.path, "w", newline="", encoding="utf-8") as f:
                 writer = csv.DictWriter(f, fieldnames=[
                     "signal_id", "asset", "direction", "entry_price", "stake",
                     "expiry_minutes", "opened_at", "exit_price",
@@ -74,10 +75,10 @@ class Simulator:
 
     def resolve_open_trades(self):
         """Check current prices and close any trades whose expiry has passed."""
-        if not os.path.exists(SIM_TRADES_FILE):
+        if not os.path.exists(self.path):
             return
 
-        df = pd.read_csv(SIM_TRADES_FILE)
+        df = pd.read_csv(self.path)
         if df.empty:
             return
 
@@ -121,25 +122,25 @@ class Simulator:
             new_row["closed_at"] = now.isoformat()
             updated_rows.append(new_row)
 
-        with open(SIM_TRADES_FILE, "w", newline="", encoding="utf-8") as f:
+        with open(self.path, "w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=updated_rows[0].keys())
             writer.writeheader()
             writer.writerows(updated_rows)
 
     def has_open_trade(self, asset: str) -> bool:
         """True if there is an unresolved sim trade for this asset."""
-        if not os.path.exists(SIM_TRADES_FILE):
+        if not os.path.exists(self.path):
             return False
-        df = pd.read_csv(SIM_TRADES_FILE)
+        df = pd.read_csv(self.path)
         if df.empty:
             return False
         return bool(((df["asset"] == asset) & (df["result"] == "open")).any())
 
     def analytics(self) -> Dict:
         empty = {"total": 0, "wins": 0, "losses": 0, "open": 0, "win_rate": 0.0, "profit": 0.0}
-        if not os.path.exists(SIM_TRADES_FILE):
+        if not os.path.exists(self.path):
             return empty
-        df = pd.read_csv(SIM_TRADES_FILE)
+        df = pd.read_csv(self.path)
         if df.empty:
             return empty
         wins = int((df["result"] == "win").sum())
@@ -162,7 +163,7 @@ class Simulator:
 
     def _append(self, row: Dict):
         self._ensure_file()
-        with open(SIM_TRADES_FILE, "a", newline="", encoding="utf-8") as f:
+        with open(self.path, "a", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=[
                 "signal_id", "asset", "direction", "entry_price", "stake",
                 "expiry_minutes", "opened_at", "exit_price",

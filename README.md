@@ -39,7 +39,9 @@ Pocket Option does not publish a verified public trading API comparable to Deriv
 | `telegram_alerts.py` | Optional Telegram bot sender |
 | `config.py` | Assets, timeframes, risk parameters, session filters |
 | `templates/index.html` | Dashboard UI with chart and notifications |
-| `run.ps1` | Start the dashboard on Windows |
+| `run.ps1` | Start the dashboard on Windows (delegates to `start_server.ps1`) |
+| `start_server.ps1` | Launches the server detached (survives terminal close); idempotent — no-op if port 5000 is already listening |
+| `stop_server.ps1` | Kills the process listening on port 5000 |
 | `setup.ps1` | One-time environment setup |
 
 ## Quick start
@@ -53,6 +55,7 @@ Pocket Option does not publish a verified public trading API comparable to Deriv
    ```powershell
    .\run.ps1
    ```
+   The server runs detached (output in `logs\server.log`) and survives terminal closure. Use `.\stop_server.ps1` to stop it. A `pocketoption-dashboard.cmd` in the Windows Startup folder re-launches it on logon.
 4. Open your browser to `http://127.0.0.1:5000`.
 5. Keep Pocket Option open in another window. When a signal appears, decide whether to take it manually on Pocket Option, then click the matching button on the dashboard.
 

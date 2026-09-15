@@ -1,16 +1,18 @@
 """Unit test for the fake trade simulator."""
 
 import os
+import tempfile
 from datetime import datetime, timezone, timedelta
 
-from simulator import Simulator, SIM_TRADES_FILE
+from simulator import Simulator
 
 
 def test_simulator_resolve():
-    if os.path.exists(SIM_TRADES_FILE):
-        os.remove(SIM_TRADES_FILE)
+    fd, path = tempfile.mkstemp(suffix=".csv", prefix="sim_trades_test_")
+    os.close(fd)
+    os.remove(path)  # let Simulator create it with its header
 
-    sim = Simulator()
+    sim = Simulator(path=path)
 
     signal = {
         "signal_id": "simtest1",
@@ -25,9 +27,9 @@ def test_simulator_resolve():
 
     # Backdate the opened_at so it is already expired
     import pandas as pd
-    df = pd.read_csv(SIM_TRADES_FILE)
+    df = pd.read_csv(path)
     df.loc[0, "opened_at"] = (datetime.now(timezone.utc) - timedelta(minutes=2)).isoformat()
-    df.to_csv(SIM_TRADES_FILE, index=False)
+    df.to_csv(path, index=False)
 
     sim.resolve_open_trades()
     analytics = sim.analytics()
@@ -36,7 +38,7 @@ def test_simulator_resolve():
     assert analytics["total"] == analytics["wins"] + analytics["losses"]
 
     # Clean up
-    os.remove(SIM_TRADES_FILE)
+    os.remove(path)
     print("Simulator test passed.")
 
 
