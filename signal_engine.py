@@ -157,6 +157,18 @@ class SignalEngine:
             logger.debug("Outside configured trading sessions for %s", symbol)
             return None
 
+        signal = self.evaluate(symbol, df)
+        if signal:
+            self.last_signal = signal
+        return signal
+
+    def evaluate(self, symbol: str, df: pd.DataFrame, now: Optional[datetime] = None) -> Optional[Signal]:
+        """Apply the strategy to a candle window. Pure: no fetching, no session check.
+        `now` overrides the signal timestamp (used by the backtester)."""
+        asset_meta = config.ASSETS.get(symbol)
+        if not asset_meta or df.empty or len(df) < config.EMA_SLOW + 5:
+            return None
+
         current_price = float(df["close"].iloc[-1])
         ema_fast = self.compute_ema(df["close"], config.EMA_FAST)
         ema_slow = self.compute_ema(df["close"], config.EMA_SLOW)
@@ -240,10 +252,10 @@ class SignalEngine:
         if not signal_direction or score < config.MIN_STRENGTH:
             return None
 
-        now = datetime.now(timezone.utc)
+        now = now or datetime.now(timezone.utc)
         window_end = now + timedelta(seconds=45)
 
-        signal = Signal(
+        return Signal(
             asset=symbol,
             label=asset_meta["label"],
             direction=signal_direction,
@@ -258,9 +270,6 @@ class SignalEngine:
             entry_window_start=now.isoformat(),
             entry_window_end=window_end.isoformat(),
         )
-
-        self.last_signal = signal
-        return signal
 
     def scan_all(self) -> List[Signal]:
         """Scan every configured asset and return active signals."""

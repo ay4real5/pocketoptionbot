@@ -197,6 +197,16 @@
                     <button class="refresh" onclick="resolveSimulations()">Resolve</button>
                 </div>
                 <div id="simMessage" class="muted" style="margin-top:0.6rem; min-height:1.2em"></div>
+                <div id="autoSimNote" class="muted" style="margin-top:0.3rem; font-size:0.8rem; display:none">Auto-simulation: ON — every signal is simulated and resolved automatically</div>
+            </div>
+
+            <div class="card" style="grid-column: 1 / -1;">
+                <h2>Backtest (last 24h of feed history)</h2>
+                <div class="actions" style="margin-top:0">
+                    <button id="backtestBtn" onclick="runBacktest()">Run backtest</button>
+                    <span id="backtestStatus" class="muted" style="align-self:center"></span>
+                </div>
+                <div id="backtestBody" class="muted" style="margin-top:0.6rem">No backtest run yet.</div>
             </div>
 
             <div class="card" style="grid-column: 1 / -1;">
@@ -306,6 +316,7 @@
         async function fetchAnalytics() { return (await fetch('/api/analytics')).json(); }
         async function fetchTrades() { return (await fetch('/api/trades')).json(); }
         async function fetchSimAnalytics() { return (await fetch('/api/simulate/analytics')).json(); }
+        async function fetchBacktest() { return (await fetch('/api/backtest')).json(); }
         async function fetchChart(symbol) { return (await fetch('/api/chart/' + symbol)).json(); }
 
         function setSimMessage(text, isError) {
@@ -512,6 +523,68 @@
             `;
         }
 
+        function winRateCell(s, be) {
+            const color = (be != null && s.win_rate >= be) ? 'var(--green)' : 'var(--red)';
+            return `<span style="color:${color}; font-weight:600">${s.win_rate}%</span>`;
+        }
+
+        function renderBacktest(data) {
+            const body = document.getElementById('backtestBody');
+            if (!body) { console.error('renderBacktest: missing element'); return; }
+            if (!data || !data.overall) {
+                body.innerHTML = 'No backtest run yet.';
+                return;
+            }
+            const o = data.overall;
+            const be = data.breakeven_win_rate;
+            body.className = '';
+            let html = `
+                <div class="row"><span>Trades</span><span>${o.total}</span></div>
+                <div class="row"><span>Wins</span><span style="color:var(--green); font-weight:600">${o.wins}</span></div>
+                <div class="row"><span>Losses</span><span style="color:var(--red); font-weight:600">${o.losses}</span></div>
+                <div class="row"><span>Win rate</span>${winRateCell(o, be)}</div>
+                <div class="row"><span>P/L</span><span style="color:${o.profit>=0?'var(--green)':'var(--red)'}; font-weight:600">$${o.profit}</span></div>
+                <div class="row muted"><span>Break-even win rate: ${be != null ? be + '%' : 'n/a'} (payout-adjusted)</span></div>
+            `;
+            if (data.per_asset && Object.keys(data.per_asset).length) {
+                html += '<table style="margin-top:0.6rem"><tr><th>Asset</th><th>Trades</th><th>Win rate</th><th>P/L</th></tr>';
+                for (const [asset, s] of Object.entries(data.per_asset)) {
+                    html += `<tr><td>${asset}</td><td>${s.total}</td><td>${winRateCell(s, be)}</td><td>$${s.profit}</td></tr>`;
+                }
+                html += '</table>';
+            }
+            if (data.per_strength && Object.keys(data.per_strength).length) {
+                html += '<table style="margin-top:0.6rem"><tr><th>Strength</th><th>Trades</th><th>Win rate</th><th>P/L</th></tr>';
+                for (const [strength, s] of Object.entries(data.per_strength)) {
+                    html += `<tr><td>${strength}</td><td>${s.total}</td><td>${winRateCell(s, be)}</td><td>$${s.profit}</td></tr>`;
+                }
+                html += '</table>';
+            }
+            if (data.note) html += `<div class="muted" style="margin-top:0.6rem; font-size:0.8rem">${data.note}</div>`;
+            body.innerHTML = html;
+        }
+
+        async function runBacktest() {
+            const btn = document.getElementById('backtestBtn');
+            const status = document.getElementById('backtestStatus');
+            btn.disabled = true;
+            status.innerText = 'Running… ~20s';
+            try {
+                const res = await fetch('/api/backtest', {method: 'POST'});
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok || data.error) {
+                    status.innerText = 'Backtest failed: ' + (data.error || res.status);
+                } else {
+                    renderBacktest(data);
+                    status.innerText = '';
+                }
+            } catch (e) {
+                status.innerText = 'Backtest failed: ' + e.message;
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
         function renderTrades(trades) {
             const body = document.getElementById('tradesBody');
             if (!body) { console.error('renderTrades: missing element'); return; }
@@ -579,6 +652,9 @@
                         : '';
                 }
 
+                const autoSimNote = document.getElementById('autoSimNote');
+                if (autoSimNote) autoSimNote.style.display = status.auto_simulate ? '' : 'none';
+
                 renderActiveSignal(signals.active_signal, halted);
                 renderSignals(signals);
                 renderAnalytics(analytics);
@@ -637,6 +713,7 @@
 
         setInterval(refreshAll, 5000);
         refreshAll();
+        fetchBacktest().then(renderBacktest).catch(() => {});
     </script>
 </body>
 </html>

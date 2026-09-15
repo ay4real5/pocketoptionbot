@@ -12,6 +12,7 @@ import pandas as pd
 from flask import Flask, jsonify, render_template, request
 
 import config
+from backtest import run_backtest
 from signal_engine import SignalEngine, Signal
 from simulator import Simulator
 from telegram_alerts import TelegramAlerter
@@ -41,7 +42,10 @@ state = {
     "last_scan": None,
     "scanning": False,
     "last_alert": {},        # asset+direction -> last alert timestamp
+    "backtest": None,        # cached result of the last /api/backtest run
 }
+
+backtest_lock = threading.Lock()
 
 
 def signal_to_dict(signal: Signal) -> dict:
@@ -88,6 +92,16 @@ def scan_once():
                     logger.info("Signal for %s suppressed by cooldown", symbol)
         state["signals"] = signals
         state["last_scan"] = datetime.now(timezone.utc).isoformat()
+        if config.AUTO_SIMULATE:
+            try:
+                for sdict in signals:
+                    if not simulator.has_open_trade(sdict["asset"]):
+                        simulator.open_trade(sdict)
+                        logger.info("Auto-sim opened %s %s @ %s",
+                                    sdict["asset"], sdict["direction"], sdict.get("current_price"))
+                simulator.resolve_open_trades()
+            except Exception as exc:
+                logger.warning("Auto-simulation error: %s", exc)
         if signals:
             # Keep the strongest signal as the active one
             best = max(signals, key=lambda s: s["strength"])
@@ -125,6 +139,7 @@ def api_status():
         "assets": list(config.ASSETS.keys()),
         "asset_meta": config.ASSETS,
         "session_filter_enabled": bool(config.SESSION_FILTER),
+        "auto_simulate": bool(config.AUTO_SIMULATE),
     })
 
 
@@ -259,6 +274,23 @@ def simulate_resolve():
 @app.route("/api/simulate/analytics")
 def simulate_analytics():
     return jsonify(simulator.analytics())
+
+
+@app.route("/api/backtest", methods=["POST"])
+def api_backtest_run():
+    """Replay the strategy over the feed's candle history (~15-20s)."""
+    if not backtest_lock.acquire(blocking=False):
+        return jsonify({"error": "backtest already running"}), 409
+    try:
+        state["backtest"] = run_backtest(engine)
+        return jsonify(state["backtest"])
+    finally:
+        backtest_lock.release()
+
+
+@app.route("/api/backtest")
+def api_backtest_get():
+    return jsonify(state["backtest"] or {})
 
 
 @app.route("/api/refresh", methods=["POST"])

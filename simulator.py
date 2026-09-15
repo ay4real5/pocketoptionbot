@@ -104,12 +104,11 @@ class Simulator:
 
             direction = row["direction"]
             entry = float(row["entry_price"])
-            # Tiny tolerance to avoid treating flat prices as losses
-            buffer = entry * 0.0001
+            # Strict: an exact tie counts as a loss (matches backtest.py)
             if direction == "CALL":
-                result = "win" if exit_price >= entry - buffer else "loss"
+                result = "win" if exit_price > entry else "loss"
             else:
-                result = "win" if exit_price <= entry + buffer else "loss"
+                result = "win" if exit_price < entry else "loss"
 
             payout = 0.0
             if result == "win":
@@ -126,6 +125,15 @@ class Simulator:
             writer = csv.DictWriter(f, fieldnames=updated_rows[0].keys())
             writer.writeheader()
             writer.writerows(updated_rows)
+
+    def has_open_trade(self, asset: str) -> bool:
+        """True if there is an unresolved sim trade for this asset."""
+        if not os.path.exists(SIM_TRADES_FILE):
+            return False
+        df = pd.read_csv(SIM_TRADES_FILE)
+        if df.empty:
+            return False
+        return bool(((df["asset"] == asset) & (df["result"] == "open")).any())
 
     def analytics(self) -> Dict:
         empty = {"total": 0, "wins": 0, "losses": 0, "open": 0, "win_rate": 0.0, "profit": 0.0}

@@ -55,6 +55,11 @@ SESSIONS_UTC = {
 }
 SESSION_FILTER = []  # e.g. ["london", "ny"] to restrict signals to those sessions
 
+# --- Auto-simulation ---
+# When True, every generated signal is automatically opened as a simulated
+# trade (one open sim trade per asset) and resolved after expiry.
+AUTO_SIMULATE = True
+
 # --- Telegram (optional) ---
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
