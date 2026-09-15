@@ -71,6 +71,7 @@
             font-weight: 700;
             font-family: "SF Mono", Monaco, monospace;
         }
+        .row { display: flex; justify-content: space-between; gap: 1rem; margin: 0.35rem 0; }
         .signal-meta {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -264,15 +265,19 @@
             initAudio();
             soundEnabled = !soundEnabled;
             const btn = document.getElementById('soundBtn');
-            btn.innerText = soundEnabled ? 'Sound ON' : 'Sound';
-            btn.className = soundEnabled ? 'enabled' : '';
+            if (btn) {
+                btn.innerText = soundEnabled ? 'Sound ON' : 'Sound';
+                btn.className = soundEnabled ? 'enabled' : '';
+            }
         }
 
         function toggleVoice() {
             voiceEnabled = !voiceEnabled;
             const btn = document.getElementById('voiceBtn');
-            btn.innerText = voiceEnabled ? 'Voice ON' : 'Voice';
-            btn.className = voiceEnabled ? 'enabled' : '';
+            if (btn) {
+                btn.innerText = voiceEnabled ? 'Voice ON' : 'Voice';
+                btn.className = voiceEnabled ? 'enabled' : '';
+            }
         }
 
         async function toggleSession() {
@@ -321,7 +326,9 @@
             const symbol = document.getElementById('chartAsset').value || 'EURUSD';
             const data = await fetchChart(symbol);
             if (data.error) return;
-            const ctx = document.getElementById('priceChart').getContext('2d');
+            const canvas = document.getElementById('priceChart');
+            if (!canvas) { console.error('loadChart: canvas missing'); return; }
+            const ctx = canvas.getContext('2d');
             const supportArr = new Array(data.prices.length).fill(data.support);
             const resistanceArr = new Array(data.prices.length).fill(data.resistance);
             const levelText = [];
@@ -363,6 +370,7 @@
             const text = `${activeSignal.label} ${activeSignal.direction} @ ${activeSignal.current_price} | Expiry ${activeSignal.expiry_minutes}m | Strength ${activeSignal.strength}/10`;
             navigator.clipboard.writeText(text).then(() => {
                 const btn = document.getElementById('copyBtn');
+                if (!btn) return;
                 const old = btn.innerText;
                 btn.innerText = 'Copied!';
                 setTimeout(() => btn.innerText = old, 1500);
@@ -373,6 +381,7 @@
             activeSignal = signal;
             const el = document.getElementById('activeSignal');
             const body = document.getElementById('signalBody');
+            if (!el || !body) { console.error('renderActiveSignal: missing element'); return; }
 
             if (halted) {
                 el.className = 'card signal-card halted';
@@ -426,6 +435,7 @@
 
         function renderSignals(data) {
             const body = document.getElementById('signalsBody');
+            if (!body) { console.error('renderSignals: missing element'); return; }
             if (!data.signals || data.signals.length === 0) {
                 body.innerHTML = '<div class="no-signal">No signals yet.</div>';
                 return;
@@ -447,6 +457,7 @@
 
         function renderAnalytics(a) {
             const body = document.getElementById('analyticsBody');
+            if (!body) { console.error('renderAnalytics: missing element'); return; }
             body.innerHTML = `
                 <div class="row"><span>Total trades</span><span>${a.total_trades}</span></div>
                 <div class="row"><span>Wins</span><span style="color:var(--green); font-weight:600">${a.wins}</span></div>
@@ -465,6 +476,7 @@
 
         function renderSimAnalytics(a) {
             const body = document.getElementById('simAnalyticsBody');
+            if (!body) { console.error('renderSimAnalytics: missing element'); return; }
             body.innerHTML = `
                 <div class="row"><span>Sim trades</span><span>${a.total}</span></div>
                 <div class="row"><span>Wins</span><span style="color:var(--green); font-weight:600">${a.wins}</span></div>
@@ -476,6 +488,7 @@
 
         function renderTrades(trades) {
             const body = document.getElementById('tradesBody');
+            if (!body) { console.error('renderTrades: missing element'); return; }
             if (!trades || trades.length === 0) {
                 body.innerHTML = 'No trades logged.';
                 return;
@@ -504,28 +517,41 @@
 
                 sessionFilterEnabled = status.session_filter_enabled || false;
                 const sbtn = document.getElementById('sessionBtn');
-                sbtn.innerText = sessionFilterEnabled ? 'Session ON' : 'Session';
-                sbtn.className = sessionFilterEnabled ? 'enabled' : '';
+                if (sbtn) {
+                    sbtn.innerText = sessionFilterEnabled ? 'Session ON' : 'Session';
+                    sbtn.className = sessionFilterEnabled ? 'enabled' : '';
+                }
 
-                document.getElementById('statusLine').innerHTML =
-                    `${status.scanning ? 'Scanning...' : 'Idle'} | Last scan: ${formatTime(status.last_scan)}
-                    <button class="refresh" onclick="forceRefresh()" style="margin-left:10px">Refresh now</button>`;
+                const statusLine = document.getElementById('statusLine');
+                if (statusLine) {
+                    statusLine.innerHTML =
+                        `${status.scanning ? 'Scanning...' : 'Idle'} | Last scan: ${formatTime(status.last_scan)}
+                        <button class="refresh" onclick="forceRefresh()" style="margin-left:10px">Refresh now</button>`;
+                }
 
                 const assetSelect = document.getElementById('chartAsset');
-                const previous = assetSelect.value;
-                assetSelect.innerHTML = Object.entries(status.asset_meta)
-                    .map(([k,v]) => `<option value="${k}">${v.label}</option>`)
-                    .join('');
-                if (previous) assetSelect.value = previous;
+                if (assetSelect) {
+                    const previous = assetSelect.value;
+                    assetSelect.innerHTML = Object.entries(status.asset_meta)
+                        .map(([k,v]) => `<option value="${k}">${v.label}</option>`)
+                        .join('');
+                    if (previous) assetSelect.value = previous;
+                }
 
-                document.getElementById('assetList').innerHTML = Object.entries(status.asset_meta)
-                    .map(([k,v]) => `<span class="asset-pill" title="Payout ${v.payout*100}%">${v.label}</span>`)
-                    .join('');
+                const assetList = document.getElementById('assetList');
+                if (assetList) {
+                    assetList.innerHTML = Object.entries(status.asset_meta)
+                        .map(([k,v]) => `<span class="asset-pill" title="Payout ${v.payout*100}%">${v.label}</span>`)
+                        .join('');
+                }
 
                 const halted = analytics.trading_halted;
-                document.getElementById('haltedBanner').innerHTML = halted
-                    ? '<div class="halted-banner">TRADING HALTED — Max loss streak or daily loss limit reached. Reset or review strategy before continuing.</div>'
-                    : '';
+                const haltedBanner = document.getElementById('haltedBanner');
+                if (haltedBanner) {
+                    haltedBanner.innerHTML = halted
+                        ? '<div class="halted-banner">TRADING HALTED — Max loss streak or daily loss limit reached. Reset or review strategy before continuing.</div>'
+                        : '';
+                }
 
                 renderActiveSignal(signals.active_signal, halted);
                 renderSignals(signals);
@@ -534,7 +560,9 @@
                 renderTrades(trades);
                 loadChart();
             } catch (e) {
-                document.getElementById('statusLine').innerText = 'Error: ' + e.message;
+                console.error('refreshAll error:', e);
+                const statusLine = document.getElementById('statusLine');
+                if (statusLine) statusLine.innerText = 'Error: ' + e.message;
             }
         }
 
