@@ -91,9 +91,11 @@ def scan_once():
         if signals:
             # Keep the strongest signal as the active one
             best = max(signals, key=lambda s: s["strength"])
-            # Safety: pause new active signals if max consecutive losses reached
-            if journal.analytics().get("trading_halted"):
-                logger.warning("Trading halted: max consecutive losses reached")
+            # Safety: pause new active signals if max consecutive losses or daily loss reached
+            analytics = journal.analytics()
+            if analytics.get("trading_halted"):
+                reason = analytics.get("halt_reason", "risk limit reached")
+                logger.warning("Trading halted: %s", reason)
                 state["active_signal"] = None
             else:
                 state["active_signal"] = best
@@ -122,7 +124,20 @@ def api_status():
         "scanning": state["scanning"],
         "assets": list(config.ASSETS.keys()),
         "asset_meta": config.ASSETS,
+        "session_filter_enabled": bool(config.SESSION_FILTER),
     })
+
+
+@app.route("/api/toggle_session", methods=["POST"])
+def toggle_session():
+    """Toggle the London/NY session filter on/off."""
+    currently_enabled = bool(config.SESSION_FILTER)
+    if currently_enabled:
+        config.SESSION_FILTER = []
+    else:
+        config.SESSION_FILTER = ["london", "ny"]
+    logger.info("Session filter toggled: %s", "ON" if config.SESSION_FILTER else "OFF")
+    return jsonify({"enabled": bool(config.SESSION_FILTER)})
 
 
 @app.route("/api/signals")

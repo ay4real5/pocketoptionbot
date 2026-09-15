@@ -7,14 +7,17 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <style>
         :root {
-            --bg: #0f1115;
-            --card: #181b21;
-            --text: #e8eaed;
-            --muted: #9aa0a6;
-            --green: #34a853;
-            --red: #ea4335;
-            --blue: #4285f4;
-            --border: #2f353d;
+            --bg: #0b0d10;
+            --card: #14161c;
+            --text: #f1f2f4;
+            --muted: #8b949e;
+            --green: #2ea043;
+            --green-bg: rgba(46,160,67,0.12);
+            --red: #da3633;
+            --red-bg: rgba(218,54,51,0.12);
+            --blue: #58a6ff;
+            --border: #30363d;
+            --yellow: #d29922;
         }
         * { box-sizing: border-box; }
         body {
@@ -22,47 +25,91 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             background: var(--bg);
             color: var(--text);
+            line-height: 1.45;
         }
         header {
-            padding: 1.2rem 1.5rem;
+            padding: 1rem 1.5rem;
             border-bottom: 1px solid var(--border);
             display: flex;
             justify-content: space-between;
             align-items: center;
+            position: sticky;
+            top: 0;
+            background: rgba(11,13,16,0.95);
+            backdrop-filter: blur(8px);
+            z-index: 10;
         }
-        header h1 { margin: 0; font-size: 1.3rem; }
-        header .status { color: var(--muted); font-size: 0.9rem; display: flex; align-items: center; gap: 1rem; }
-        main { padding: 1.5rem; max-width: 1200px; margin: 0 auto; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
+        header h1 { margin: 0; font-size: 1.2rem; letter-spacing: -0.02em; }
+        header .status { color: var(--muted); font-size: 0.85rem; display: flex; align-items: center; gap: 0.8rem; }
+        main { padding: 1.2rem; max-width: 1300px; margin: 0 auto; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
         .card {
             background: var(--card);
             border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 1.2rem;
+            border-radius: 12px;
+            padding: 1.1rem;
         }
-        .card h2 { margin-top: 0; font-size: 1rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
-        .signal-card { border-left: 4px solid var(--blue); }
-        .signal-card.call { border-left-color: var(--green); }
-        .signal-card.put { border-left-color: var(--red); }
-        .big { font-size: 1.6rem; font-weight: 600; }
-        .muted { color: var(--muted); }
-        .row { display: flex; justify-content: space-between; margin: 0.4rem 0; }
-        .actions { display: flex; gap: 0.6rem; margin-top: 1rem; }
-        button {
+        .card h2 { margin-top: 0; font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.8rem; }
+        .signal-card { grid-column: 1 / -1; border: 2px solid var(--border); transition: border-color 0.3s; }
+        .signal-card.call { border-color: var(--green); background: var(--green-bg); }
+        .signal-card.put { border-color: var(--red); background: var(--red-bg); }
+        .signal-card.halted { border-color: var(--yellow); opacity: 0.6; }
+        .big-signal {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        .big-signal .direction {
+            font-size: 3.2rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+        }
+        .big-signal .price {
+            font-size: 2.4rem;
+            font-weight: 700;
+            font-family: "SF Mono", Monaco, monospace;
+        }
+        .signal-meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 0.8rem;
+            margin-top: 1rem;
+        }
+        .meta-item { background: rgba(0,0,0,0.25); border-radius: 8px; padding: 0.6rem 0.8rem; }
+        .meta-item .label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; }
+        .meta-item .value { font-size: 1.1rem; font-weight: 600; margin-top: 0.2rem; }
+        .strength-bar {
+            height: 8px;
+            background: var(--border);
+            border-radius: 4px;
+            margin-top: 0.4rem;
+            overflow: hidden;
+        }
+        .strength-fill { height: 100%; background: var(--blue); transition: width 0.3s; }
+        .actions { display: flex; gap: 0.6rem; margin-top: 1rem; flex-wrap: wrap; }
+        .actions.center { justify-content: center; }
+        button, .btn {
             background: var(--blue);
             color: #fff;
             border: none;
-            border-radius: 6px;
-            padding: 0.6rem 1rem;
+            border-radius: 8px;
+            padding: 0.7rem 1.1rem;
             cursor: pointer;
             font-size: 0.95rem;
+            font-weight: 500;
+            text-decoration: none;
+            display: inline-block;
         }
-        button:hover { opacity: 0.9; }
-        button.win { background: var(--green); }
-        button.loss { background: var(--red); }
-        button.void { background: #5f6368; }
-        button.refresh { background: #1e8e3e; }
-        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        button:hover, .btn:hover { opacity: 0.9; }
+        button.call { background: var(--green); }
+        button.put { background: var(--red); }
+        button.void { background: #484f58; }
+        button.copy { background: #8957e5; }
+        button.refresh { background: #1f883d; }
+        button:disabled { opacity: 0.4; cursor: not-allowed; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
         th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid var(--border); }
         th { color: var(--muted); }
         .no-signal { color: var(--muted); padding: 1rem 0; }
@@ -71,29 +118,50 @@
             background: var(--bg);
             border: 1px solid var(--border);
             border-radius: 20px;
-            padding: 0.3rem 0.7rem;
-            font-size: 0.85rem;
+            padding: 0.25rem 0.65rem;
+            font-size: 0.8rem;
         }
-        .strength-bar {
-            height: 6px;
+        .halted-banner {
+            background: var(--yellow);
+            color: #000;
+            font-weight: 700;
+            padding: 0.7rem 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        .key-hint {
+            display: inline-block;
             background: var(--border);
-            border-radius: 3px;
-            margin-top: 0.3rem;
-            overflow: hidden;
+            border-radius: 4px;
+            padding: 0.15rem 0.4rem;
+            font-size: 0.75rem;
+            font-family: monospace;
+            margin-left: 0.3rem;
         }
-        .strength-fill { height: 100%; background: var(--blue); }
-        #soundBtn {
+        .toolbar {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        .toolbar button { padding: 0.4rem 0.7rem; font-size: 0.8rem; }
+        .reason { color: var(--muted); font-size: 0.9rem; margin-top: 0.8rem; }
+        #soundBtn, #voiceBtn, #sessionBtn {
             background: transparent;
             border: 1px solid var(--border);
             color: var(--muted);
-            padding: 0.3rem 0.6rem;
-            font-size: 0.8rem;
+            padding: 0.35rem 0.7rem;
+            font-size: 0.78rem;
         }
-        #soundBtn.enabled {
+        #soundBtn.enabled, #voiceBtn.enabled, #sessionBtn.enabled {
             border-color: var(--green);
             color: var(--green);
         }
-        @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+        @media (max-width: 900px) {
+            .grid { grid-template-columns: 1fr; }
+            .big-signal .direction { font-size: 2.2rem; }
+            .big-signal .price { font-size: 1.6rem; }
+        }
     </style>
 </head>
 <body>
@@ -101,13 +169,17 @@
         <h1>Pocket Option Signal Assistant</h1>
         <div class="status" id="statusLine">
             Initializing...
-            <button id="soundBtn" onclick="toggleSound()">Enable sound</button>
+            <button id="soundBtn" onclick="toggleSound()">Sound</button>
+            <button id="voiceBtn" onclick="toggleVoice()">Voice</button>
+            <button id="sessionBtn" onclick="toggleSession()">Session</button>
         </div>
     </header>
     <main>
+        <div id="haltedBanner"></div>
+
         <div class="grid">
             <div class="card signal-card" id="activeSignal">
-                <h2>Active Signal</h2>
+                <h2>Active Signal <span class="key-hint">C</span>=Confirm <span class="key-hint">P</span>=Dismiss <span class="key-hint">W</span>=WIN <span class="key-hint">L</span>=LOSS <span class="key-hint">S</span>=Sim</h2>
                 <div id="signalBody" class="no-signal">No active signal yet.</div>
             </div>
 
@@ -120,18 +192,18 @@
                 <h2>Simulation</h2>
                 <div id="simAnalyticsBody">Loading...</div>
                 <div class="actions" style="margin-top:0.8rem">
-                    <button onclick="simulateTrade()">Simulate active signal</button>
+                    <button onclick="simulateTrade()">Simulate signal <span class="key-hint">S</span></button>
                     <button class="refresh" onclick="resolveSimulations()">Resolve</button>
                 </div>
             </div>
 
             <div class="card" style="grid-column: 1 / -1;">
                 <h2>Price Chart</h2>
-                <div style="display:flex; gap:1rem; align-items:center; margin-bottom:0.8rem">
+                <div style="display:flex; gap:1rem; align-items:center; margin-bottom:0.8rem; flex-wrap:wrap">
                     <select id="chartAsset" onchange="loadChart()"></select>
                     <span class="muted" id="chartLevels"></span>
                 </div>
-                <canvas id="priceChart" height="80"></canvas>
+                <canvas id="priceChart" height="70"></canvas>
             </div>
 
             <div class="card" style="grid-column: 1 / -1;">
@@ -153,9 +225,12 @@
 
     <script>
         let activeSignal = null;
-        let soundEnabled = false;
         let lastSignalId = null;
+        let soundEnabled = false;
+        let voiceEnabled = false;
         let audioCtx = null;
+        let sessionFilterEnabled = false;
+        let priceChart = null;
 
         function initAudio() {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -167,25 +242,52 @@
             const gain = audioCtx.createGain();
             osc.type = "sine";
             osc.frequency.setValueAtTime(880, audioCtx.currentTime);
-            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+            gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
             osc.connect(gain);
             gain.connect(audioCtx.destination);
             osc.start();
-            osc.stop(audioCtx.currentTime + 0.3);
+            osc.stop(audioCtx.currentTime + 0.25);
+        }
+
+        function speakSignal(signal) {
+            if (!voiceEnabled || !window.speechSynthesis) return;
+            const text = `${signal.direction} ${signal.label}, strength ${signal.strength}, expiry ${signal.expiry_minutes} minutes`;
+            const u = new SpeechSynthesisUtterance(text);
+            u.rate = 1.1;
+            u.pitch = 1;
+            window.speechSynthesis.cancel();
+            window.speechSynthesis.speak(u);
         }
 
         function toggleSound() {
             initAudio();
             soundEnabled = !soundEnabled;
             const btn = document.getElementById('soundBtn');
-            btn.innerText = soundEnabled ? 'Sound ON' : 'Enable sound';
+            btn.innerText = soundEnabled ? 'Sound ON' : 'Sound';
             btn.className = soundEnabled ? 'enabled' : '';
+        }
+
+        function toggleVoice() {
+            voiceEnabled = !voiceEnabled;
+            const btn = document.getElementById('voiceBtn');
+            btn.innerText = voiceEnabled ? 'Voice ON' : 'Voice';
+            btn.className = voiceEnabled ? 'enabled' : '';
+        }
+
+        async function toggleSession() {
+            const res = await fetch('/api/toggle_session', {method: 'POST'});
+            const data = await res.json();
+            sessionFilterEnabled = data.enabled;
+            const btn = document.getElementById('sessionBtn');
+            btn.innerText = sessionFilterEnabled ? 'Session ON' : 'Session';
+            btn.className = sessionFilterEnabled ? 'enabled' : '';
+            await forceRefresh();
         }
 
         function notify(title, body) {
             if ("Notification" in window && Notification.permission === "granted") {
-                new Notification(title, { body, icon: "" });
+                new Notification(title, { body });
             }
         }
 
@@ -193,54 +295,27 @@
             Notification.requestPermission();
         }
 
-        async function fetchStatus() {
-            const res = await fetch('/api/status');
-            return await res.json();
-        }
-
-        async function fetchSignals() {
-            const res = await fetch('/api/signals');
-            return await res.json();
-        }
-
-        async function fetchAnalytics() {
-            const res = await fetch('/api/analytics');
-            return await res.json();
-        }
-
-        async function fetchTrades() {
-            const res = await fetch('/api/trades');
-            return await res.json();
-        }
-
-        async function fetchSimAnalytics() {
-            const res = await fetch('/api/simulate/analytics');
-            return await res.json();
-        }
+        async function fetchStatus() { return (await fetch('/api/status')).json(); }
+        async function fetchSignals() { return (await fetch('/api/signals')).json(); }
+        async function fetchAnalytics() { return (await fetch('/api/analytics')).json(); }
+        async function fetchTrades() { return (await fetch('/api/trades')).json(); }
+        async function fetchSimAnalytics() { return (await fetch('/api/simulate/analytics')).json(); }
+        async function fetchChart(symbol) { return (await fetch('/api/chart/' + symbol)).json(); }
 
         async function simulateTrade() {
             if (!activeSignal) return alert('No active signal to simulate');
-            const res = await fetch('/api/simulate/trade', {
+            await fetch('/api/simulate/trade', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({signal: activeSignal})
             });
-            await res.json();
             await refreshAll();
         }
 
         async function resolveSimulations() {
-            const res = await fetch('/api/simulate/resolve', {method: 'POST'});
-            await res.json();
+            await fetch('/api/simulate/resolve', {method: 'POST'});
             await refreshAll();
         }
-
-        async function fetchChart(symbol) {
-            const res = await fetch('/api/chart/' + symbol);
-            return await res.json();
-        }
-
-        let priceChart = null;
 
         async function loadChart() {
             const symbol = document.getElementById('chartAsset').value || 'EURUSD';
@@ -260,32 +335,9 @@
                 data: {
                     labels: data.labels,
                     datasets: [
-                        {
-                            label: 'Close',
-                            data: data.prices,
-                            borderColor: '#4285f4',
-                            borderWidth: 2,
-                            pointRadius: 0,
-                            tension: 0.2
-                        },
-                        {
-                            label: 'Support',
-                            data: supportArr,
-                            borderColor: '#34a853',
-                            borderWidth: 1,
-                            borderDash: [5, 5],
-                            pointRadius: 0,
-                            fill: false
-                        },
-                        {
-                            label: 'Resistance',
-                            data: resistanceArr,
-                            borderColor: '#ea4335',
-                            borderWidth: 1,
-                            borderDash: [5, 5],
-                            pointRadius: 0,
-                            fill: false
-                        }
+                        { label: 'Close', data: data.prices, borderColor: '#58a6ff', borderWidth: 2, pointRadius: 0, tension: 0.2 },
+                        { label: 'Support', data: supportArr, borderColor: '#2ea043', borderWidth: 1, borderDash: [5, 5], pointRadius: 0, fill: false },
+                        { label: 'Resistance', data: resistanceArr, borderColor: '#da3633', borderWidth: 1, borderDash: [5, 5], pointRadius: 0, fill: false }
                     ]
                 },
                 options: {
@@ -293,9 +345,9 @@
                     maintainAspectRatio: false,
                     scales: {
                         x: { display: false },
-                        y: { grid: { color: '#2f353d' } }
+                        y: { grid: { color: '#30363d' } }
                     },
-                    plugins: { legend: { labels: { color: '#e8eaed' } } }
+                    plugins: { legend: { labels: { color: '#f1f2f4' } } }
                 }
             });
         }
@@ -306,46 +358,67 @@
             return d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
         }
 
-        function renderActiveSignal(signal) {
+        function copySignal() {
+            if (!activeSignal) return;
+            const text = `${activeSignal.label} ${activeSignal.direction} @ ${activeSignal.current_price} | Expiry ${activeSignal.expiry_minutes}m | Strength ${activeSignal.strength}/10`;
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = document.getElementById('copyBtn');
+                const old = btn.innerText;
+                btn.innerText = 'Copied!';
+                setTimeout(() => btn.innerText = old, 1500);
+            });
+        }
+
+        function renderActiveSignal(signal, halted) {
             activeSignal = signal;
             const el = document.getElementById('activeSignal');
             const body = document.getElementById('signalBody');
+
+            if (halted) {
+                el.className = 'card signal-card halted';
+                body.innerHTML = `<div style="text-align:center; padding:2rem 0; font-size:1.3rem; color:var(--yellow); font-weight:700">TRADING HALTED</div><div style="text-align:center; color:var(--muted)">Max loss streak or daily loss limit reached. Review the strategy before resuming.</div>`;
+                return;
+            }
+
             if (!signal) {
                 el.className = 'card signal-card';
                 body.innerHTML = '<div class="no-signal">No active signal yet.</div>';
                 return;
             }
-            // New signal appeared
+
             if (lastSignalId !== signal.signal_id) {
                 lastSignalId = signal.signal_id;
                 playBeep();
-                notify(
-                    `${signal.label} ${signal.direction}`,
-                    `Strength ${signal.strength}/10 | ${signal.current_price}`
-                );
+                speakSignal(signal);
+                notify(`${signal.label} ${signal.direction}`, `Strength ${signal.strength}/10 | ${signal.current_price}`);
             }
-            el.className = 'card signal-card ' + signal.direction.toLowerCase();
-            const color = signal.direction === 'CALL' ? 'var(--green)' : 'var(--red)';
+
+            const isCall = signal.direction === 'CALL';
+            const color = isCall ? 'var(--green)' : 'var(--red)';
+            el.className = 'card signal-card ' + (isCall ? 'call' : 'put');
+
             body.innerHTML = `
-                <div class="row">
-                    <span class="big" style="color:${color}">${signal.label} ${signal.direction}</span>
-                    <span class="big" style="color:${color}">${signal.current_price}</span>
+                <div class="big-signal">
+                    <div class="direction" style="color:${color}">${signal.direction}</div>
+                    <div class="price" style="color:${color}">${signal.current_price}</div>
                 </div>
-                <div class="row"><span>Strength</span><span>${signal.strength}/10</span></div>
+                <div class="signal-meta">
+                    <div class="meta-item"><div class="label">Asset</div><div class="value">${signal.label}</div></div>
+                    <div class="meta-item"><div class="label">Strength</div><div class="value">${signal.strength}/10</div></div>
+                    <div class="meta-item"><div class="label">Expiry</div><div class="value">${signal.expiry_minutes} min</div></div>
+                    <div class="meta-item"><div class="label">Stake</div><div class="value">$${signal.suggested_stake}</div></div>
+                    <div class="meta-item"><div class="label">Window</div><div class="value">${formatTime(signal.entry_window_start)} - ${formatTime(signal.entry_window_end)}</div></div>
+                </div>
                 <div class="strength-bar"><div class="strength-fill" style="width:${signal.strength*10}%; background:${color}"></div></div>
-                <div class="row"><span>Expiry</span><span>${signal.expiry_minutes} min</span></div>
-                <div class="row"><span>Suggested stake</span><span>$${signal.suggested_stake}</span></div>
-                <div class="row"><span>Support</span><span>${signal.support || 'n/a'}</span></div>
-                <div class="row"><span>Resistance</span><span>${signal.resistance || 'n/a'}</span></div>
-                <div class="row"><span>Window</span><span>${formatTime(signal.entry_window_start)} - ${formatTime(signal.entry_window_end)}</span></div>
-                <div class="muted" style="margin-top:0.6rem; font-size:0.9rem">${signal.reason}</div>
-                <div class="actions">
-                    <button onclick="takeTrade()">I took this trade</button>
+                <div class="reason">${signal.reason}</div>
+                <div class="actions center">
+                    <button id="copyBtn" class="copy" onclick="copySignal()">Copy trade details</button>
+                    <button class="call" onclick="takeTrade()">I took this trade</button>
                     <button class="void" onclick="clearActive()">Dismiss</button>
                 </div>
-                <div class="actions" style="margin-top:0.5rem">
-                    <button class="win" onclick="closeTrade('win')">Mark WIN</button>
-                    <button class="loss" onclick="closeTrade('loss')">Mark LOSS</button>
+                <div class="actions center" style="margin-top:0.5rem">
+                    <button class="call" onclick="closeTrade('win')">Mark WIN</button>
+                    <button class="put" onclick="closeTrade('loss')">Mark LOSS</button>
                     <button class="void" onclick="closeTrade('void')">Void</button>
                 </div>
             `;
@@ -359,9 +432,10 @@
             }
             let html = '<table><tr><th>Asset</th><th>Dir</th><th>Strength</th><th>Price</th><th>Time</th></tr>';
             for (const s of data.signals.slice(0, 20)) {
+                const color = s.direction === 'CALL' ? 'var(--green)' : 'var(--red)';
                 html += `<tr>
                     <td>${s.label}</td>
-                    <td style="color:${s.direction==='CALL'?'var(--green)':'var(--red)'}">${s.direction}</td>
+                    <td style="color:${color}; font-weight:600">${s.direction}</td>
                     <td>${s.strength}/10</td>
                     <td>${s.current_price}</td>
                     <td>${formatTime(s.generated_at)}</td>
@@ -373,16 +447,15 @@
 
         function renderAnalytics(a) {
             const body = document.getElementById('analyticsBody');
-            const halt = a.trading_halted ? `<div style="color:var(--red);font-weight:600;margin-bottom:0.5rem">TRADING HALTED - review strategy</div>` : '';
             body.innerHTML = `
-                ${halt}
                 <div class="row"><span>Total trades</span><span>${a.total_trades}</span></div>
-                <div class="row"><span>Wins</span><span style="color:var(--green)">${a.wins}</span></div>
-                <div class="row"><span>Losses</span><span style="color:var(--red)">${a.losses}</span></div>
+                <div class="row"><span>Wins</span><span style="color:var(--green); font-weight:600">${a.wins}</span></div>
+                <div class="row"><span>Losses</span><span style="color:var(--red); font-weight:600">${a.losses}</span></div>
                 <div class="row"><span>Win rate</span><span>${a.win_rate}%</span></div>
-                <div class="row"><span>P/L</span><span style="color:${a.profit>=0?'var(--green)':'var(--red)'}">$${a.profit}</span></div>
+                <div class="row"><span>P/L</span><span style="color:${a.profit>=0?'var(--green)':'var(--red)'}; font-weight:600">$${a.profit}</span></div>
                 <div class="row"><span>Open trades</span><span>${a.open_trades}</span></div>
-                <div class="row"><span>Max loss streak</span><span style="color:var(--red)">${a.max_consecutive_losses}</span></div>
+                <div class="row"><span>Max loss streak</span><span style="color:var(--red); font-weight:600">${a.max_consecutive_losses}</span></div>
+                ${a.daily_loss ? `<div class="row"><span>Daily loss</span><span style="color:var(--red); font-weight:600">$${a.daily_loss}</span></div>` : ''}
                 <div style="margin-top:0.8rem">
                     <button onclick="window.open('/api/export/trades')">Export CSV</button>
                 </div>
@@ -394,10 +467,10 @@
             const body = document.getElementById('simAnalyticsBody');
             body.innerHTML = `
                 <div class="row"><span>Sim trades</span><span>${a.total}</span></div>
-                <div class="row"><span>Wins</span><span style="color:var(--green)">${a.wins}</span></div>
-                <div class="row"><span>Losses</span><span style="color:var(--red)">${a.losses}</span></div>
+                <div class="row"><span>Wins</span><span style="color:var(--green); font-weight:600">${a.wins}</span></div>
+                <div class="row"><span>Losses</span><span style="color:var(--red); font-weight:600">${a.losses}</span></div>
                 <div class="row"><span>Win rate</span><span>${a.win_rate}%</span></div>
-                <div class="row"><span>P/L</span><span style="color:${a.profit>=0?'var(--green)':'var(--red)'}">$${a.profit}</span></div>
+                <div class="row"><span>P/L</span><span style="color:${a.profit>=0?'var(--green)':'var(--red)'}; font-weight:600">$${a.profit}</span></div>
             `;
         }
 
@@ -412,9 +485,9 @@
                 const color = t.result === 'win' ? 'var(--green)' : (t.result === 'loss' ? 'var(--red)' : 'var(--muted)');
                 html += `<tr>
                     <td>${t.asset}</td>
-                    <td>${t.direction}</td>
+                    <td style="color:${color}; font-weight:600">${t.direction}</td>
                     <td>$${t.stake}</td>
-                    <td style="color:${color}">${t.result.toUpperCase()}</td>
+                    <td style="color:${color}; font-weight:600">${t.result.toUpperCase()}</td>
                     <td>$${t.payout || 0}</td>
                     <td>${formatTime(t.opened_at)}</td>
                 </tr>`;
@@ -428,19 +501,33 @@
                 const [status, signals, analytics, trades, simAnalytics] = await Promise.all([
                     fetchStatus(), fetchSignals(), fetchAnalytics(), fetchTrades(), fetchSimAnalytics()
                 ]);
+
+                sessionFilterEnabled = status.session_filter_enabled || false;
+                const sbtn = document.getElementById('sessionBtn');
+                sbtn.innerText = sessionFilterEnabled ? 'Session ON' : 'Session';
+                sbtn.className = sessionFilterEnabled ? 'enabled' : '';
+
                 document.getElementById('statusLine').innerHTML =
                     `${status.scanning ? 'Scanning...' : 'Idle'} | Last scan: ${formatTime(status.last_scan)}
                     <button class="refresh" onclick="forceRefresh()" style="margin-left:10px">Refresh now</button>`;
+
                 const assetSelect = document.getElementById('chartAsset');
                 const previous = assetSelect.value;
                 assetSelect.innerHTML = Object.entries(status.asset_meta)
                     .map(([k,v]) => `<option value="${k}">${v.label}</option>`)
                     .join('');
                 if (previous) assetSelect.value = previous;
+
                 document.getElementById('assetList').innerHTML = Object.entries(status.asset_meta)
                     .map(([k,v]) => `<span class="asset-pill" title="Payout ${v.payout*100}%">${v.label}</span>`)
                     .join('');
-                renderActiveSignal(signals.active_signal);
+
+                const halted = analytics.trading_halted;
+                document.getElementById('haltedBanner').innerHTML = halted
+                    ? '<div class="halted-banner">TRADING HALTED — Max loss streak or daily loss limit reached. Reset or review strategy before continuing.</div>'
+                    : '';
+
+                renderActiveSignal(signals.active_signal, halted);
                 renderSignals(signals);
                 renderAnalytics(analytics);
                 renderSimAnalytics(simAnalytics);
@@ -483,6 +570,16 @@
         async function forceRefresh() {
             await fetch('/api/refresh', {method: 'POST'});
         }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+            const key = e.key.toLowerCase();
+            if (key === 'c' && activeSignal) { e.preventDefault(); takeTrade(); }
+            if (key === 'p' && activeSignal) { e.preventDefault(); clearActive(); }
+            if (key === 'w' && activeSignal) { e.preventDefault(); closeTrade('win'); }
+            if (key === 'l' && activeSignal) { e.preventDefault(); closeTrade('loss'); }
+            if (key === 's' && activeSignal) { e.preventDefault(); simulateTrade(); }
+        });
 
         setInterval(refreshAll, 5000);
         refreshAll();

@@ -5,7 +5,7 @@ import json
 import logging
 import os
 from dataclasses import dataclass, asdict
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -144,10 +144,20 @@ class TradeJournal:
         win_rate = (wins / (wins + losses) * 100) if (wins + losses) else 0.0
 
         # P/L calculation: stake returned on loss is 0; on win stake + payout
-        profit = df.apply(lambda r: float(r["payout"]) if r["result"] == "win" else -float(r["stake"]) if r["result"] == "loss" else 0.0, axis=1).sum()
+        df["pnl"] = df.apply(lambda r: float(r["payout"]) if r["result"] == "win" else -float(r["stake"]) if r["result"] == "loss" else 0.0, axis=1)
+        profit = float(df["pnl"].sum())
+
+        # Daily loss based on opened_at date in UTC
+        today = datetime.now(timezone.utc).date()
+        df["date"] = df["opened_at"].dt.date
+        daily_loss = float(df[(df["date"] == today) & (df["pnl"] < 0)]["pnl"].sum())
 
         closed = df[df["result"].isin(["win", "loss"])].sort_values("opened_at").reset_index(drop=True)
         max_loss_streak = self._max_consecutive_losses(closed["result"].tolist()) if not closed.empty else 0
+
+        halted_by_streak = max_loss_streak >= config.MAX_CONSECUTIVE_LOSS
+        halted_by_daily = abs(daily_loss) >= config.MAX_DAILY_LOSS
+        halted = halted_by_streak or halted_by_daily
 
         # Per-asset stats
         asset_stats = []
@@ -175,7 +185,9 @@ class TradeJournal:
             "profit": round(profit, 2),
             "open_trades": open_trades,
             "max_consecutive_losses": max_loss_streak,
-            "trading_halted": max_loss_streak >= config.MAX_CONSECUTIVE_LOSS,
+            "daily_loss": round(daily_loss, 2),
+            "trading_halted": halted,
+            "halt_reason": "max_loss_streak" if halted_by_streak else ("daily_loss" if halted_by_daily else None),
             "assets": sorted(df["asset"].unique().tolist()),
             "asset_stats": asset_stats,
         }

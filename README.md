@@ -14,13 +14,16 @@ Pocket Option does not publish a verified public trading API comparable to Deriv
 - Generates CALL/PUT signals with strength score, expiry window and suggested stake.
 - Throttles repeated alerts so you do not get spammed.
 - Shows live signals and an interactive price chart on a local web dashboard (`http://127.0.0.1:5000`).
-- Plays a browser sound + notification when a new signal appears.
+- Plays a browser sound + notification + voice alert when a new signal appears.
 - Lets you click "I took this trade" and later mark WIN / LOSS / VOID.
-- Tracks win rate, profit/loss, per-asset stats, max loss streak and open trades.
+- Tracks win rate, profit/loss, per-asset stats, max loss streak, daily loss and open trades.
+- **Auto-halts** new signals when max loss streak or daily loss limit is reached.
 - Includes a **fake trade simulator** to test the strategy without risking funds.
 - Exports trade history to CSV.
+- One-click copy of trade details for fast manual entry on Pocket Option.
+- Keyboard hotkeys: `C` confirm trade, `P` dismiss, `W` win, `L` loss, `S` simulate.
+- Optional London / NY session filter with dashboard toggle.
 - Optionally sends signal alerts to Telegram.
-- Optional London / NY session filter.
 
 ## Files
 
