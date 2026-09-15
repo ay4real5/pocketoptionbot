@@ -8,8 +8,9 @@ load_dotenv()
 # --- Assets to watch ---
 # Use symbols that exist on both biquote/MetaTrader and Pocket Option.
 # Pocket Option usually shows them as EUR/USD, GBP/USD, etc.
-# 4 majors + 7 cross pairs that passed the 3-month out-of-sample test
-# (>54% win rate, >=150 trades on unseen Aug-Sep data with the confluence strategy).
+# 21 pairs that passed the 3-month out-of-sample test (>52.9% win rate on
+# unseen Aug-Sep data with the confluence strategy, >=100 trades).
+# 4 pairs failed and were excluded: AUDJPY, USDCHF, CADCHF, EURNZD.
 ASSETS = {
     "EURUSD": {"label": "EUR/USD", "payout": 0.92, "category": "forex"},
     "GBPUSD": {"label": "GBP/USD", "payout": 0.90, "category": "forex"},
@@ -22,6 +23,16 @@ ASSETS = {
     "EURJPY": {"label": "EUR/JPY", "payout": 0.85, "category": "forex"},
     "GBPJPY": {"label": "GBP/JPY", "payout": 0.85, "category": "forex"},
     "CHFJPY": {"label": "CHF/JPY", "payout": 0.85, "category": "forex"},
+    "NZDUSD": {"label": "NZD/USD", "payout": 0.85, "category": "forex"},
+    "USDCAD": {"label": "USD/CAD", "payout": 0.85, "category": "forex"},
+    "EURCAD": {"label": "EUR/CAD", "payout": 0.85, "category": "forex"},
+    "AUDCAD": {"label": "AUD/CAD", "payout": 0.85, "category": "forex"},
+    "GBPCAD": {"label": "GBP/CAD", "payout": 0.85, "category": "forex"},
+    "EURCHF": {"label": "EUR/CHF", "payout": 0.85, "category": "forex"},
+    "NZDCAD": {"label": "NZD/CAD", "payout": 0.85, "category": "forex"},
+    "GBPCHF": {"label": "GBP/CHF", "payout": 0.85, "category": "forex"},
+    "GBPNZD": {"label": "GBP/NZD", "payout": 0.85, "category": "forex"},
+    "AUDNZD": {"label": "AUD/NZD", "payout": 0.85, "category": "forex"},
 }
 
 DEFAULT_ASSET = "EURUSD"
