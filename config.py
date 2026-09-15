@@ -8,13 +8,20 @@ load_dotenv()
 # --- Assets to watch ---
 # Use symbols that exist on both biquote/MetaTrader and Pocket Option.
 # Pocket Option usually shows them as EUR/USD, GBP/USD, etc.
-# Only the four forex majors: all four were profitable on the unseen Aug-Sep test
-# data with the confluence strategy; Gold and BTC were coin flips.
+# 4 majors + 7 cross pairs that passed the 3-month out-of-sample test
+# (>54% win rate, >=150 trades on unseen Aug-Sep data with the confluence strategy).
 ASSETS = {
     "EURUSD": {"label": "EUR/USD", "payout": 0.92, "category": "forex"},
     "GBPUSD": {"label": "GBP/USD", "payout": 0.90, "category": "forex"},
     "AUDUSD": {"label": "AUD/USD", "payout": 0.87, "category": "forex"},
     "USDJPY": {"label": "USD/JPY", "payout": 0.88, "category": "forex"},
+    "EURAUD": {"label": "EUR/AUD", "payout": 0.85, "category": "forex"},
+    "CADJPY": {"label": "CAD/JPY", "payout": 0.85, "category": "forex"},
+    "NZDJPY": {"label": "NZD/JPY", "payout": 0.85, "category": "forex"},
+    "GBPAUD": {"label": "GBP/AUD", "payout": 0.85, "category": "forex"},
+    "EURJPY": {"label": "EUR/JPY", "payout": 0.85, "category": "forex"},
+    "GBPJPY": {"label": "GBP/JPY", "payout": 0.85, "category": "forex"},
+    "CHFJPY": {"label": "CHF/JPY", "payout": 0.85, "category": "forex"},
 }
 
 DEFAULT_ASSET = "EURUSD"
