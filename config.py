@@ -41,7 +41,7 @@ DEFAULT_ASSET = "EURUSD"
 CHART_TIMEFRAME = "5m"      # candles the strategy is evaluated on (closed candles only)
 SIGNAL_TIMEFRAME = "1m"     # candles used for entry timing
 SIGNAL_INTERVAL_SECONDS = 30  # how often the engine refreshes
-EXPIRY_MINUTES = 30         # Pocket Option expiry to use for every signal
+EXPIRY_MINUTES = 5          # Pocket Option expiry to use for every signal
 ENTRY_WINDOW_SECONDS = 120  # enter within this long after the signal candle closes
 
 # --- Strategy: mean-reversion confluence (see strategy_lab2.py) ---

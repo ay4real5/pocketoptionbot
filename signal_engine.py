@@ -201,25 +201,24 @@ class SignalEngine:
 
         # --- Mean-reversion confluence (validated out-of-sample in strategy_lab2.py) ---
         # Three independent "overshoot" votes on the last closed candle:
-        #   RSI extreme, close outside the 20/2 Bollinger band, 3 same-colour candles.
+        #   RSI extreme, close outside the 20/2 Bollinger band, 5 same-colour candles.
         close, open_ = df["close"], df["open"]
         bb_mid = close.rolling(config.BB_PERIOD).mean()
         bb_sd = close.rolling(config.BB_PERIOD).std()
         upper = float((bb_mid + config.BB_STD * bb_sd).iloc[-1])
         lower = float((bb_mid - config.BB_STD * bb_sd).iloc[-1])
-        colours = (close > open_).iloc[-3:].tolist()
-        three_down = not any(colours) and all((close < open_).iloc[-3:])
-        three_up = all(colours)
+        last5_down = bool((close.iloc[-5:] < open_.iloc[-5:]).all())
+        last5_up = bool((close.iloc[-5:] > open_.iloc[-5:]).all())
 
         call_votes = [
             (last_rsi < config.RSI_OVERSOLD, f"RSI {last_rsi:.0f} oversold"),
             (current_price < lower, f"close below lower Bollinger ({lower:.5f})"),
-            (three_down, "3 red candles in a row"),
+            (last5_down, "5 red candles in a row"),
         ]
         put_votes = [
             (last_rsi > config.RSI_OVERBOUGHT, f"RSI {last_rsi:.0f} overbought"),
             (current_price > upper, f"close above upper Bollinger ({upper:.5f})"),
-            (three_up, "3 green candles in a row"),
+            (last5_up, "5 green candles in a row"),
         ]
         n_call = sum(v for v, _ in call_votes)
         n_put = sum(v for v, _ in put_votes)
@@ -229,18 +228,22 @@ class SignalEngine:
         votes = max(n_call, n_put)
         reason_parts = [r for v, r in (call_votes if signal_direction == "CALL" else put_votes) if v]
 
-        # Which rule allows this trade?
+        # At 5m expiry the edge is concentrated in 20:00-24:00 UTC (59.8% win rate
+        # on unseen data). All-hours signals are break-even at best, so we only
+        # fire during the late session.
         hour = now.hour
         late_session = any(a <= hour < b for a, b in config.CONFLUENCE_LATE_HOURS_UTC)
+        if not late_session:
+            return None
         if votes >= 3:
-            reason_parts.append("all 3 reversal conditions (any hour)")
-        elif votes >= config.CONFLUENCE_LATE_MIN_VOTES and late_session:
+            reason_parts.append("all 3 reversal conditions in late session")
+        elif votes >= config.CONFLUENCE_LATE_MIN_VOTES:
             reason_parts.append("2 of 3 conditions in late session")
         else:
             return None
 
-        # Strength: 3 votes = 9, 2 votes = 7, +1 in the late-session window (best backtest block)
-        score = min(10, (9 if votes >= 3 else 7) + (1 if late_session else 0))
+        # Strength: 3 votes = 9, 2 votes = 7, +1 late session
+        score = min(10, (9 if votes >= 3 else 7) + 1)
         if score < config.MIN_STRENGTH:
             return None
 
