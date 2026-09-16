@@ -140,6 +140,7 @@ def api_status():
         "asset_meta": config.ASSETS,
         "session_filter_enabled": bool(config.SESSION_FILTER),
         "auto_simulate": bool(config.AUTO_SIMULATE),
+        "expiry_minutes": config.EXPIRY_MINUTES,
     })
 
 

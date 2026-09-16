@@ -177,7 +177,7 @@
     </header>
     <main>
         <div id="haltedBanner"></div>
-        <div class="muted" style="font-size:0.8rem; margin-bottom:0.8rem">Strategy: mean-reversion confluence · 30-minute expiry · forex majors only (real pairs, NOT OTC) · prices via biquote.io interbank feed</div>
+        <div class="muted" style="font-size:0.8rem; margin-bottom:0.8rem">Strategy: mean-reversion confluence · <span id="strategyExpiry">5</span>-minute expiry · 21 forex pairs (real pairs, NOT OTC) · prices via biquote.io interbank feed</div>
 
         <div class="grid">
             <div class="card signal-card" id="activeSignal">
@@ -618,6 +618,8 @@
 
                 sessionFilterEnabled = status.session_filter_enabled || false;
                 assetMeta = status.asset_meta || {};
+                const expEl = document.getElementById('strategyExpiry');
+                if (expEl && status.expiry_minutes) expEl.innerText = status.expiry_minutes;
                 const sbtn = document.getElementById('sessionBtn');
                 if (sbtn) {
                     sbtn.innerText = sessionFilterEnabled ? 'Session ON' : 'Session';
