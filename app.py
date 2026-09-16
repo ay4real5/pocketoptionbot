@@ -133,6 +133,10 @@ def index():
 
 @app.route("/api/status")
 def api_status():
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    hour = now.hour
+    in_window = any(a <= hour < b for a, b in config.CONFLUENCE_LATE_HOURS_UTC)
     return jsonify({
         "last_scan": state["last_scan"],
         "scanning": state["scanning"],
@@ -141,6 +145,8 @@ def api_status():
         "session_filter_enabled": bool(config.SESSION_FILTER),
         "auto_simulate": bool(config.AUTO_SIMULATE),
         "expiry_minutes": config.EXPIRY_MINUTES,
+        "trading_window": config.CONFLUENCE_LATE_HOURS_UTC,
+        "in_trading_window": in_window,
     })
 
 
