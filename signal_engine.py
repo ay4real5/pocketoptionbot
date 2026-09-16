@@ -228,22 +228,20 @@ class SignalEngine:
         votes = max(n_call, n_put)
         reason_parts = [r for v, r in (call_votes if signal_direction == "CALL" else put_votes) if v]
 
-        # At 5m expiry the edge is concentrated in 20:00-24:00 UTC (59.8% win rate
-        # on unseen data). All-hours signals are break-even at best, so we only
-        # fire during the late session.
+        # All-hours mode: 3 votes required during the day (weaker edge),
+        # 2 votes sufficient during 20:00-24:00 UTC (strongest edge).
         hour = now.hour
         late_session = any(a <= hour < b for a, b in config.CONFLUENCE_LATE_HOURS_UTC)
-        if not late_session:
-            return None
+        min_votes = config.CONFLUENCE_LATE_MIN_VOTES if late_session else 3
         if votes >= 3:
-            reason_parts.append("all 3 reversal conditions in late session")
-        elif votes >= config.CONFLUENCE_LATE_MIN_VOTES:
+            reason_parts.append("all 3 reversal conditions")
+        elif votes >= min_votes and late_session:
             reason_parts.append("2 of 3 conditions in late session")
         else:
             return None
 
         # Strength: 3 votes = 9, 2 votes = 7, +1 late session
-        score = min(10, (9 if votes >= 3 else 7) + 1)
+        score = min(10, (9 if votes >= 3 else 7) + (1 if late_session else 0))
         if score < config.MIN_STRENGTH:
             return None
 
