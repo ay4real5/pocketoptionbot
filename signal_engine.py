@@ -201,24 +201,24 @@ class SignalEngine:
 
         # --- Mean-reversion confluence (validated out-of-sample in strategy_lab2.py) ---
         # Three independent "overshoot" votes on the last closed candle:
-        #   RSI extreme, close outside the 20/2 Bollinger band, 5 same-colour candles.
+        #   RSI extreme, close outside the 20/2 Bollinger band, 3 same-colour candles.
         close, open_ = df["close"], df["open"]
         bb_mid = close.rolling(config.BB_PERIOD).mean()
         bb_sd = close.rolling(config.BB_PERIOD).std()
         upper = float((bb_mid + config.BB_STD * bb_sd).iloc[-1])
         lower = float((bb_mid - config.BB_STD * bb_sd).iloc[-1])
-        last5_down = bool((close.iloc[-5:] < open_.iloc[-5:]).all())
-        last5_up = bool((close.iloc[-5:] > open_.iloc[-5:]).all())
+        last3_down = bool((close.iloc[-3:] < open_.iloc[-3:]).all())
+        last3_up = bool((close.iloc[-3:] > open_.iloc[-3:]).all())
 
         call_votes = [
             (last_rsi < config.RSI_OVERSOLD, f"RSI {last_rsi:.0f} oversold"),
             (current_price < lower, f"close below lower Bollinger ({lower:.5f})"),
-            (last5_down, "5 red candles in a row"),
+            (last3_down, "3 red candles in a row"),
         ]
         put_votes = [
             (last_rsi > config.RSI_OVERBOUGHT, f"RSI {last_rsi:.0f} overbought"),
             (current_price > upper, f"close above upper Bollinger ({upper:.5f})"),
-            (last5_up, "5 green candles in a row"),
+            (last3_up, "3 green candles in a row"),
         ]
         n_call = sum(v for v, _ in call_votes)
         n_put = sum(v for v, _ in put_votes)

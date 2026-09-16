@@ -64,7 +64,7 @@ SR_TOUCH_THRESHOLD_PCT = 0.0010
 EMA_FAST = 8
 EMA_SLOW = 21
 MIN_STRENGTH = 7            # 0-10 scale; confluence signals score 7-10
-SIGNAL_COOLDOWN_SECONDS = 300     # one alert per asset+direction per 5m candle
+SIGNAL_COOLDOWN_SECONDS = 120     # one alert per asset+direction per 2 min
 
 # --- Oscillators ---
 RSI_PERIOD = 14
