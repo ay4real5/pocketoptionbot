@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="vision-token" content="{{ vision_token }}">
+    <meta name="extension-id" content="{{ extension_id }}">
+    <meta name="connection-request" content="{{ request_hash }}">
+    <title>Approve Chart Assistant</title>
+    <style>
+        :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #0b1015; color: #e4edf1; }
+        body { max-width: 520px; padding: 36px 24px; margin: 8vh auto; }
+        main { padding: 28px; border: 1px solid #29353d; border-radius: 18px; background: #141c23; }
+        h1 { font-size: 26px; } p { line-height: 1.6; color: #adbdc8; }
+        button { display: block; width: 100%; padding: 14px; font: inherit; font-weight: 600; border: 0; border-radius: 10px; background: #74d9c4; color: #07110f; cursor: pointer; }
+        button:disabled { opacity: .5; cursor: default; } a { color: #74d9c4; }
+        code { overflow-wrap: anywhere; } details { margin-top: 20px; font-size: 13px; }
+        #revokeExtension { margin-top: 18px; background: #26343d; color: #e4edf1; }
+    </style>
+    <script defer src="{{ url_for('static', filename='extension_pair.js') }}"></script>
+</head>
+<body>
+    <main>
+        <h1>Connect your chart assistant</h1>
+        <p>Approve once. The extension connects automatically—no codes to copy.</p>
+        <p>This allows your extension to use the local AI service for <strong>30 days</strong>, including across restarts. Chart uploads can incur OpenAI API charges. You still review the preview and press Start before any images are sent.</p>
+        <button id="approveExtension">Approve connection</button>
+        <p id="pairStatus" role="status">Only approve if you opened this page from your Chart Assistant extension.</p>
+        <details>
+            <summary>Connection details and access controls</summary>
+            <p>Extension ID: <code>{{ extension_id or 'No extension selected' }}</code></p>
+            <p>Your OpenAI key stays on the local server. The server saves only a hash of the extension's access token. No chart images are saved. Approval is limited to this extension on this computer and shares the hourly API cap.</p>
+            <button id="revokeExtension">Revoke extension access</button>
+            <p>Revocation blocks new requests; a request already submitted may still be billed.</p>
+        </details>
+        <p><a href="/screen-analysis">Browser assistant</a></p>
+    </main>
+</body>
+</html>

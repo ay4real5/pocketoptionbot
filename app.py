@@ -3,13 +3,21 @@
 import json
 import logging
 import os
+import secrets
+import sqlite3
 import threading
 import time
 import uuid
 from datetime import datetime, timezone
+from urllib.parse import urlsplit
 
 import pandas as pd
 from flask import Flask, jsonify, render_template, request
+from werkzeug.exceptions import BadRequest, RequestEntityTooLarge
+
+from cloud_vision import VisionError, VisionService
+from extension_access import register_extension_routes
+from vision_journal import VisionJournal, JournalError
 
 import config
 from backtest import run_backtest
@@ -46,6 +54,24 @@ state = {
 }
 
 backtest_lock = threading.Lock()
+vision = VisionService()
+vision_token = secrets.token_urlsafe(32)
+vision_journal = None
+vision_journal_lock = threading.Lock()
+
+
+def get_vision_journal():
+    global vision_journal
+    with vision_journal_lock:
+        if vision_journal is None:
+            path = os.path.join(config.DATA_DIR, 'vision-journal.sqlite3') if __name__ == '__main__' else ':memory:'
+            vision_journal = VisionJournal(path)
+        return vision_journal
+
+
+def local_vision_request():
+    return (request.remote_addr in ('127.0.0.1', '::1') and
+            urlsplit(request.host_url).hostname in ('127.0.0.1', 'localhost', '::1'))
 
 
 def signal_to_dict(signal: Signal) -> dict:
@@ -129,6 +155,93 @@ def scanner_loop():
 @app.route("/")
 def index():
     return render_template("index.html")
+
+
+@app.route("/screen-analysis")
+def screen_analysis():
+    if not local_vision_request():
+        return jsonify({"error": "Open this page on localhost."}), 403
+    response = app.make_response(render_template("screen_analysis.html", vision_token=vision_token))
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+        "connect-src 'self'; media-src 'self' blob:; object-src 'none'; "
+        "base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+    )
+    response.headers["Referrer-Policy"] = "no-referrer"
+    return response
+
+
+@app.route("/api/vision/status")
+def vision_status():
+    if not local_vision_request():
+        return jsonify({"error": "Local access required."}), 403
+    response = jsonify(vision.status())
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@app.route("/api/vision/analyze", methods=["POST"])
+def vision_analyze():
+    if (not local_vision_request() or
+            request.headers.get("Origin") != request.host_url.rstrip("/") or
+            not secrets.compare_digest(request.headers.get("X-Vision-Token", ""), vision_token)):
+        return jsonify({"direction": "WAIT", "reason": "Local page authorization required. Reload the page.", "error_code": "authorization"}), 403
+    return analyze_capture()
+
+
+def analyze_capture():
+    request.max_content_length = 2100000
+    try:
+        payload = request.get_json(silent=True)
+        result = vision.analyze(payload)
+        if 'captured_at' in result and 'expires_at' in result:
+            try:
+                result['analysis_id'] = get_vision_journal().record(result)
+            except (sqlite3.Error, OSError):
+                result['journal_warning'] = 'This analysis could not be saved locally. Check the journal before relying on its totals.'
+                logger.warning('Vision journal unavailable; analysis not saved.')
+        response = jsonify(result)
+    except (BadRequest, RequestEntityTooLarge):
+        response = jsonify({"direction": "WAIT", "reason": "Invalid or oversized chart capture."})
+        response.status_code = 413
+    except VisionError as exc:
+        response = jsonify({"direction": "WAIT", "reason": str(exc), "retry_after": exc.retry_after,
+                            "error_code": exc.code, "invalid_field": exc.field})
+        if exc.field:
+            logger.warning("Vision validation rejected field=%s code=%s", exc.field, exc.code)
+        response.status_code = exc.status
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+def vision_journal_request(action):
+    request.max_content_length = 4096
+    try:
+        result = get_vision_journal().dispatch(action, request.get_json(silent=True))
+        response = jsonify(result)
+    except JournalError as exc:
+        response = jsonify(reason=str(exc)); response.status_code = exc.status
+    except (BadRequest, RequestEntityTooLarge):
+        response = jsonify(reason='Invalid journal request.'); response.status_code = 400
+    except (sqlite3.Error, OSError):
+        response = jsonify(reason='Local journal unavailable. No record was confirmed saved.'); response.status_code = 503
+    response.headers['Cache-Control'] = 'no-store'
+    return response
+
+
+@app.route('/api/vision/journal/<action>', methods=['POST'])
+def vision_journal_action(action):
+    if (not local_vision_request() or request.headers.get('Origin') != request.host_url.rstrip('/') or
+            not secrets.compare_digest(request.headers.get('X-Vision-Token', ''), vision_token)):
+        return jsonify(reason='Local page authorization required.'), 403
+    return vision_journal_request(action)
+
+
+extension_access = register_extension_routes(
+    app, vision, vision_token, local_vision_request, analyze_capture,
+    state_path=os.path.join(config.DATA_DIR, 'extension-access.json') if __name__ == '__main__' else None,
+    journal_handler=vision_journal_request)
 
 
 @app.route("/api/status")

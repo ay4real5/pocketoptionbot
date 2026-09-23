@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="vision-token" content="{{ vision_token }}">
+    <title>Pocket Option AI Chart Assistant</title>
+    <style>
+        :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #10151f; color: #e5eaf3; }
+        body { max-width: 1100px; margin: auto; padding: 20px; }
+        a { color: #87c6ff; } h1 { font-size: 1.6rem; }
+        section { background: #192230; border: 1px solid #354154; border-radius: 10px; padding: 18px; margin: 16px 0; }
+        button, input, select { font: inherit; padding: 10px; border-radius: 5px; border: 1px solid #607086; }
+        select { max-width: 100%; background: #10151f; color: #e5eaf3; }
+        button { cursor: pointer; background: #244b70; color: white; } button:disabled { opacity: .45; cursor: not-allowed; }
+        .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+        .muted { color: #b5c0d0; } .warning { color: #ffcf7c; } li { margin: 8px 0; }
+        #direction { font-size: 3.5rem; margin: 8px 0; } #direction[data-value="BUY"] { color: #63dfb3; }
+        #direction[data-value="SELL"] { color: #ff9999; }
+        #analysisState { font-weight: 700; letter-spacing: .04em; }
+        #analysisState[data-state="error"] { color: #ff9999; }
+        #analysisState[data-state="reading"] { color: #87c6ff; }
+        #preview { display: block; max-width: 100%; height: auto; border: 1px solid #63748c; margin: 12px 0; }
+        #video { position: fixed; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+        table { width: 100%; text-align: left; border-collapse: collapse; } td, th { border-bottom: 1px solid #354154; padding: 8px; }
+        #history { overflow-x: auto; } label { display: inline-block; margin: 6px 0; }
+        code { overflow-wrap: anywhere; } summary { cursor: pointer; }
+    </style>
+    {% if extension_mode %}
+    <link rel="stylesheet" href="panel.css">
+    <script defer src="policy.js"></script>
+    <script defer src="bridge.js"></script>
+    {% endif %}
+    <script defer src="{{ url_for('static', filename='screen_analysis.js') }}"></script>
+    <script defer src="{{ url_for('static', filename='chart_alerts.js') }}"></script>
+    <script defer src="{{ url_for('static', filename='screen_capture.js') }}"></script>
+</head>
+<body class="{{ 'extension-panel' if extension_mode else 'web-assistant' }}">
+    {% if extension_mode %}
+    <section id="extensionConnection">
+        <h2>Connect local backend</h2>
+        <p id="connectionStatus" role="status">Checking connection…</p>
+        <p id="targetStatus">Open Pocket Option and click this extension's toolbar icon to select its tab.</p>
+        <details id="pairingHelp">
+            <summary>Pair or reconnect</summary>
+            <p>One-time approval per server/browser session. The API key stays on your laptop's server.</p>
+            <button id="openPairing">Open local approval page</button>
+            <label for="pairCode">Paste the temporary pairing code (not your OpenAI key)</label>
+            <input id="pairCode" type="password" autocomplete="off" maxlength="100">
+            <button id="connectBackend">Connect</button>
+            <button id="disconnectBackend">Disconnect and revoke</button>
+        </details>
+    </section>
+    {% else %}
+    <a href="/">Back to independent-market dashboard</a>
+    <p><a href="/extension-pair">Browser extension setup / revoke access</a></p>
+    {% endif %}
+    <h1>Pocket Option AI Chart Assistant</h1>
+    <p>Share your chart. Let AI read the visible candles and indicators. You place trades manually.</p>
+    <p class="warning">Demo experiment, not a validated trading strategy. AI can misread charts. BUY/SELL is a visual opinion, not a reliable forecast or guaranteed profit.</p>
+    <section>
+        <div class="controls">
+            <button id="share" disabled>Watch my chart</button>
+            <button id="stop" disabled>Stop sharing</button>
+            <label><input id="sound" type="checkbox"> Sound alerts</label>
+            <label for="soundVolume">Volume <output id="volumeValue" for="soundVolume">50%</output></label>
+            <input id="soundVolume" type="range" min="0" max="100" step="5" value="50">
+            <button id="testBuySound">Test BUY tone</button><button id="testSellSound">Test SELL tone</button>
+        </div>
+        <p id="soundStatus" class="muted" role="status">Test tones are local and do not scan a chart.</p>
+        <label><input id="desktopAlerts" type="checkbox" disabled> Desktop notifications (extension)</label>
+        <button id="testDesktop" disabled>Test notification</button>
+        <p id="desktopStatus" class="muted" role="status">Desktop notifications are available in the extension. They can show signal details on your desktop or lock screen.</p>
+        {% if extension_mode %}<p>Capture is limited to the Pocket Option tab selected with the extension icon. Minimising or switching windows keeps the selected capture active; navigation or closing the panel ends it. Stop before opening private overlays.</p>{% else %}
+        <p><strong>Share a tab, not a window:</strong> keep Pocket Option and this assistant in the same Chrome or Edge browser profile. Click Watch my chart, select the Pocket Option tab, then click Share in the browser chooser.</p>
+        {% endif %}
+        <details id="captureHelp">
+            <summary>Sharing help — cancelled, blocked, or missing tab?</summary>
+            {% if extension_mode %}
+            <ol>
+                <li>Open the Pocket Option demo chart, then click this extension's toolbar icon to select it.</li>
+                <li>Keep that chart active and this panel visible. Click Watch selected chart.</li>
+                <li>Inspect the preview and approve upload before starting. There is no screen-sharing chooser in extension mode.</li>
+            </ol>
+            <p>Monitoring continues across minimisation and focus changes when frames remain fresh. Navigation, closing the panel/browser, or permission loss ends capture. Return to the chart and select it again after capture ends.</p>
+            {% else %}
+            <ol>
+                <li>Open your Pocket Option demo chart in a normal tab in this same browser profile. Tabs in another browser or profile may not appear.</li>
+                <li>Click Watch my chart here. In the chooser, select <strong>Microsoft Edge Tab</strong> or <strong>Chrome Tab</strong> (the wording varies by browser).</li>
+                <li>Click the Pocket Option tab thumbnail or name, then <strong>Share</strong>. Do not choose Window, Entire Screen, or this assistant.</li>
+                <li>Return here, inspect the cropped preview, approve upload, and click Start automatic analysis. Sharing alone does not send images to OpenAI.</li>
+            </ol>
+            <p>If no chooser appears, bring this page into focus and retry. If the browser reports a policy or permission block, ask your device administrator or check the browser's sharing permissions. Do not disable browser security protections. Copy the capture status below if it still fails.</p>
+            <p>Browser sharing approval is required each time you start a new sharing session. The app cannot approve it for you.</p>
+            {% endif %}
+        </details>
+        <p id="setupStatus" role="status">Checking local API setup…</p>
+        <details id="setupHelp">
+            <summary>API setup and privacy</summary>
+            <p>Add <code>OPENAI_API_KEY=your_key</code> to this project's local <code>.env</code> file, then restart the dashboard. Never paste your key into chat or commit it. This page never receives the key.</p>
+            <p>Provider: OpenAI. Model: GPT-4.1 mini. API billing is separate from ChatGPT. A cropped chart is sent through your local server, normally once every 30 seconds, with a faster initial asset confirmation after 10 seconds and a server-wide cap of 60 attempts per hour. These in-memory limits reset if the server restarts; set a provider budget too.</p>
+            <p>The app does not save images. Requests use <code>store: false</code>; this does not override the provider's abuse-monitoring or retention policies. Stop prevents future uploads, but cannot recall an image already sent.</p>
+            <button id="checkSetup">Recheck setup</button>
+        </details>
+    </section>
+    <section>
+        <label for="strategy">Strategy</label>
+        <select id="strategy" disabled aria-describedby="strategyInfo strategyRules"></select>
+        <p id="strategyInfo">Checking available strategies…</p>
+        <p id="strategyRules" class="muted"></p>
+        <p class="warning">Two-minute expiry is a demo setting, not a validated edge. The Aroon gap is an experimental 20-point filter. Normal scans are 30 seconds apart, initial asset confirmation can be 10 seconds apart, not every tick; brief setups may be missed. Two matching reads confirm the asset, not the trade direction.</p>
+    </section>
+    <section>
+        <p id="analysisState" data-state="wait" role="status">WAIT</p>
+        <h2 id="assetName">No chart identified</h2>
+        <div id="direction" data-value="WAIT" role="status">WAIT</div>
+        <p id="reason">Start with Watch my chart and choose only the Pocket Option browser tab.</p>
+        <ul id="ruleChecks"></ul>
+        <ul id="observations"></ul>
+        <p id="invalidation" class="muted"></p>
+        <p id="readings" class="muted"></p>
+        <p id="freshness" class="muted">No capture. Intended demo expiry: 2 minutes from manual entry. A result expires 20 seconds after its source image; that freshness limit is not the trade duration.</p>
+        <p id="requestStatus" class="muted">No API calls made by this page.</p>
+    </section>
+    <section>
+        <h2>Upload preview — one confirmation per share</h2>
+        <p>No boxes or colour picking. A preset desktop crop removes the usual account header and order panel. It is not guaranteed redaction: inspect the preview before approving, and hide any private overlays.</p>
+        <p class="muted">Keep the asset name, candle timeframe, indicator labels and scales visible. For Aroon + OsMA, use S30 candles with both panels readable; for trend/range mode, use 1-minute candles and a momentum indicator. Zoom in if individual completed candles are hard to distinguish. Only this chart is watched, not hidden pairs. Keep this page and the chart visible side by side. Verify the displayed asset before acting; switch detection is best-effort.</p>
+        <label><input id="autoFrame" type="checkbox" checked disabled> Chart-aware framing is available in the extension</label>
+        <p id="framingStatus" class="muted"></p><p id="candleTiming" class="muted"></p>
+        <label><input id="moreToolbar" type="checkbox" disabled> Include more of the top toolbar if the asset or S30 label is clipped</label>
+        <p class="muted">Changing the framing pauses uploads and requires fresh preview approval. Expanded framing may reveal additional private content: inspect it before approving.</p>
+        <video id="video" autoplay muted playsinline></video>
+        <canvas id="preview" width="960" height="400" aria-label="Exact cropped chart sent to OpenAI"></canvas>
+        <label><input type="checkbox" id="consent" disabled> This preview shows only the chart I want analysed. I approve sending these images to OpenAI and the API usage cost.</label>
+        <div class="controls"><button id="start" disabled>Start automatic analysis</button><button id="pause" disabled>Pause uploads</button></div>
+        <p id="captureStatus" role="status">Not sharing. No image is uploaded until you approve the preview.</p>
+    </section>
+    <section>
+        <h2>Optional manual demo record</h2>
+        <p>Saved locally, separate from biquote simulation. Mark only actual demo entries and manually verified platform results. No screenshots are stored.</p>
+        <p id="journalSummary"></p><ul id="journalGroups"></ul><p id="journalStatus" role="status"></p>
+        <label>Stake (optional)<input id="journalStake" type="number" min="0.01" step="0.01" placeholder="Account units"></label>
+        <label>Profit payout %<input id="journalPayout" type="number" min="0.01" max="100" step="0.01" placeholder="Actual payout"></label>
+        <p>Enter both or leave both blank. P/L excludes fees, API costs and unpriced entries; keep account units consistent. A payout of 92 means 0.92 profit per 1 staked.</p>
+        <button id="refreshJournal">Refresh saved records</button>
+        <details><summary>Recent analyses and displayed cues</summary><ul id="savedSignals"></ul></details>
+        <button id="logTrade" disabled>I entered this demo trade</button>
+        <div id="history"><table><thead><tr><th>AI-read asset (verify)</th><th>Direction</th><th>Entry time</th><th>2m timer / result</th></tr></thead><tbody id="trades"></tbody></table></div>
+    </section>
+</body>
+</html>

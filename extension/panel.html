@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="vision-token" content="">
+    <title>Chart Assistant</title>
+    <link rel="stylesheet" href="panel.css">
+    <script defer src="policy.js"></script>
+    <script defer src="chart_probe.js"></script>
+    <script defer src="chart_alerts.js"></script>
+    <script defer src="bridge.js"></script>
+    <script defer src="screen_analysis.js"></script>
+    <script defer src="screen_capture.js"></script>
+    <script defer src="panel.js"></script>
+</head>
+<body data-phase="checking">
+    <header class="topbar">
+        <div class="brand"><span class="brand-mark" aria-hidden="true"></span><span>CHART<span class="brand-light"> / ASSIST</span></span></div>
+        <span id="connectionBadge" class="badge">CHECKING</span>
+    </header>
+    <main>
+        <section id="resultCard" class="signal-card" aria-label="Chart analysis">
+            <div class="card-heading"><span id="viewState" class="eyebrow">GETTING READY</span><span class="demo-label">DEMO</span></div>
+            <h1 id="assetName">Your chart, one clear read.</h1>
+            <p id="detectionStatus" class="muted">Detecting the selected chart locally.</p>
+            <div class="result-grid"><div id="direction" data-value="WAIT" role="status">WAIT</div><div class="match-score"><span class="eyebrow">RULE MATCH</span><strong id="setupPercent">—</strong></div></div>
+            <progress id="setupProgress" max="100" value="0" aria-label="Setup condition match, not win probability"></progress>
+            <p id="setupCount" class="muted">SCAN to evaluate the conditions.</p>
+            <p class="score-note">Checklist progress, not a probability of winning.</p>
+            <p id="reason">Checking your saved connection.</p>
+            <p id="directionBias" class="muted">Directional bias: unclear</p>
+            <p id="entryTiming" class="timing-note">No timed-entry cue without a verified candle clock.</p>
+            <div class="activity" aria-hidden="true"><span></span></div>
+            <div class="metrics">
+                <div><span class="eyebrow">CANDLES</span><strong id="candleMetric">30s</strong></div>
+                <div><span class="eyebrow">EXPIRY</span><strong id="expiryMetric">2m</strong></div>
+                <div><span class="eyebrow" id="timeMetricLabel">NEXT SCAN</span><strong id="timeMetric">—</strong></div>
+            </div>
+        </section>
+        <section id="previewCard" class="preview-card" hidden>
+            <div class="card-heading"><span class="eyebrow">CHECK YOUR PREVIEW</span><span class="local-label">LOCAL ONLY</span></div>
+            <canvas id="preview" width="960" height="400" aria-label="Exact chart crop sent for analysis"></canvas>
+            <p id="previewNotice">Make sure this shows only your chart. SCAN sends two fresh cropped frames to OpenAI in one paid request. Nothing is sent between scans.</p>
+        </section>
+        <div class="action-row">
+            <button id="mainAction" class="primary" disabled>Checking connection…</button>
+            <button id="stopAction" class="stop-button" title="Stop capture and future uploads" hidden>Stop</button>
+        </div>
+        <p id="actionHint" class="action-hint" role="status">Preparing your assistant.</p>
+        <p id="miniStatus" class="mini-status"></p>
+        <details id="analysisDetails" class="drawer">
+            <summary>Why this result?</summary>
+            <ul id="ruleChecks" class="rule-checks"></ul>
+            <ul id="observations"></ul>
+            <p id="invalidation"></p>
+            <p id="readings"></p>
+            <p class="muted">Indicator readings are visual estimates. WAIT can mean no setup or an unreadable chart; connection errors are shown separately.</p>
+        </details>
+        <details id="settingsDrawer" class="drawer">
+            <summary>Settings</summary>
+            <label for="strategy">Strategy</label>
+            <select id="strategy" disabled></select>
+            <p id="strategyInfo" class="muted"></p>
+            <p id="strategyRules" class="muted"></p>
+            <section class="alert-settings" aria-label="Sound and desktop alerts">
+                <h3>Alerts</h3>
+                <label class="switch"><input id="sound" type="checkbox"> Sound alerts</label>
+                <label for="soundVolume">Volume <output id="volumeValue" for="soundVolume">50%</output></label>
+                <input id="soundVolume" type="range" min="0" max="100" step="5" value="50">
+                <div class="test-tones"><button id="testBuySound" class="secondary">Test BUY tone</button><button id="testSellSound" class="secondary">Test SELL tone</button></div>
+                <p id="soundStatus" class="muted" role="status">Tests play locally; no chart scan or API charge.</p>
+                <label class="switch"><input id="desktopAlerts" type="checkbox"> Desktop notifications</label>
+                <button id="testDesktop" class="secondary" disabled>Test notification</button>
+                <p id="desktopStatus" class="muted" role="status">Optional. Enabling this asks for notification permission. Signal details may appear on your desktop or lock screen.</p>
+                <p class="muted">BUY tones rise; SELL tones fall. Repeat opinions are quiet until a qualified setup resets or changed evidence accompanies a newly observed candle. Always check the live panel; Windows may suppress alerts under Do Not Disturb.</p>
+            </section>
+            <label class="switch"><input id="autoFrame" type="checkbox" checked> Detect chart boundaries locally</label>
+            <p id="framingStatus" class="muted">Inspecting chart layout…</p>
+            <p id="candleTiming" class="muted">Candle timing is shown only when the clock is readable. Scans remain manual.</p>
+            <label class="switch"><input id="moreToolbar" type="checkbox" disabled> Include more toolbar in the crop</label>
+            <p class="muted">Set the actual 2-minute expiry on Pocket Option yourself. This app never places trades.</p>
+            <details id="setupHelp"><summary>Connection and privacy</summary>
+                <p id="setupStatus"></p>
+                <p>Manual mode: one AI request with two fresh frames per SCAN. Minimum 10s between requests; maximum 60/hour. Local detection never triggers paid scans. Images are not saved; provider processing and retention policies still apply.</p>
+                <button id="disconnectBackend" class="secondary" disabled>Disconnect this browser</button>
+            </details>
+            <details id="captureHelp"><summary>Capture help</summary>
+                <p>Start on your selected chart. Minimising or switching windows keeps that capture session active. Frozen frames cancel an in-progress scan without an automatic retry. Local detection resumes when frames return. Closing the panel/browser, navigating the captured tab, or losing capture permission ends capture. Stop before opening private overlays.</p>
+                <p id="captureStatus"></p><p id="analysisState" data-state="wait">WAIT</p>
+                <p id="freshness"></p><p id="requestStatus"></p>
+            </details>
+        </details>
+        <details id="demoRecord" class="drawer">
+            <summary>Saved demo performance</summary>
+            <p id="journalSummary" class="muted">Loading local records…</p>
+            <ul id="journalGroups" class="muted"></ul>
+            <p id="journalStatus" role="status" class="muted"></p>
+            <div class="journal-inputs">
+                <label>Stake (optional)<input id="journalStake" type="number" min="0.01" step="0.01" placeholder="Account units"></label>
+                <label>Profit payout %<input id="journalPayout" type="number" min="0.01" max="100" step="0.01" placeholder="Actual payout"></label>
+            </div>
+            <p class="muted">Enter both amounts for P/L, or leave both blank. A 92% payout means 0.92 profit per 1 staked. No stake is recommended.</p>
+            <button id="logTrade" class="secondary" disabled>I entered this demo trade</button>
+            <div class="history"><table><thead><tr><th>Asset</th><th>Direction</th><th>Entry</th><th>2m result</th></tr></thead><tbody id="trades"></tbody></table></div>
+            <button id="refreshJournal" class="secondary">Refresh saved records</button>
+            <details><summary>Recent analyses and displayed cues</summary><ul id="savedSignals"></ul></details>
+            <p class="muted">Saved on this laptop, separate from simulation. No screenshots are stored. Outcomes are manually reported; P/L excludes fees and API costs and includes only priced results. Keep account units consistent.</p>
+        </details>
+    </main>
+    <footer>AI estimates. Demo only. No guaranteed returns.</footer>
+    <video id="video" autoplay muted playsinline></video>
+    <div hidden aria-hidden="true">
+        <button id="share" disabled>Preview chart</button><button id="stop" disabled>Stop</button>
+        <button id="checkSetup">Recheck</button><button id="start" disabled>Start</button><button id="pause" disabled>Pause</button>
+        <input id="consent" type="checkbox" disabled>
+    </div>
+</body>
+</html>
